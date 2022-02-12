@@ -18,8 +18,8 @@ from kivy.clock import Clock
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.core.window import Window
 from kivy.lang import Builder
-from kivy.garden.graph import LinePlot
-from kivy.garden.graph import ScatterPlot
+from kivy_garden.graph import LinePlot
+from kivy_garden.graph import ScatterPlot
 
 
 # In[2]:

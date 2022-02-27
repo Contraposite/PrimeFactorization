@@ -1,149 +1,218 @@
 #: kivy 2.0.0
 
+<Label>:
+    color: 0.7,0.9,1,1 #0.36,0.67,0.87,1
+    font_name: 'consola'
+                
 <TextLabel>:
     multiline: False
     text_size: self.size
     font_size: min( self.height*0.8, self.width/(0.1+0.6*len(self.text)) )
     valign: "middle"
-        
+    #color: 1,1,0.5,1
+
+<FactorBox@TextLabel>:
+    size_hint: None,1
+    width: root.height * len(self.text)
+    halign: "center"
+    color: 0.2,0.2,0.2,1
+    canvas.before:
+        Color:
+            rgba: (0.7,0.9,1,1)
+        RoundedRectangle:
+            pos: self.x+1, self.y+1
+            size: self.width-2, self.height-2
+            radius: [10,]
+                
+<RunningInputBox@TextLabel>:
+    size_hint: None,1
+    width: root.height * len(self.text)
+    halign: "center"
+    color: (0.8,0.8,0.8,1) if len(self.text)>0 else (0,0,0,0)
+    canvas.before:
+        Color:
+            rgba: (0.2,0.2,0.2,1) if len(self.text)>0 else (0,0,0,0)
+        RoundedRectangle:
+            pos: self.x+1, self.y+1
+            size: self.width-2, self.height-2
+            radius: [self.height/2,]
+                
 <MultilineTextLabel>:
     multiline: True
     text_size: self.size
     font_size: ( self.height*self.width / (1+ len(self.text)) )**0.5
     valign: "top"
+    #font_name: "consola"
 
 <Button>:
     text_size: self.size
     font_size: min( self.height*0.6, self.width/(1+0.6*len(self.text)) )
     halign: "center"
     valign: "middle"
+    #font_name: "consola"
+    
+<RoundedButton@Button>:
+    background_color: 0,0,0,0
+    canvas.before:
+        Color:
+            rgba: (0.2,0.2,0.2,1) if self.state=='normal' else (0.8,0.8,0.8,1)
+        RoundedRectangle:
+            pos: self.x+1, self.y+1
+            size: self.width-2, self.height-2
+            radius: [10,]
+        Color:
+            rgba: (0.25,0.25,0.25,1) if self.state=='normal' else (0.6,0.6,0.6,1)
+        RoundedRectangle:
+            pos: self.x+4, self.y+4
+            size: self.width-8, self.height-8
+            radius: [8,]        
 
 <MyGrid>:
     name: "game_screen"
         
-    GridLayout:
-        size: root.width, root.height
-        cols:1
+    FloatLayout:
             
-        TextLabel:
-            text: "Target:"
-            size_hint_y: 0.3
-        
-        TextLabel:
-            id: target
-            text: self.text
-            size_hint_y: 1.75
-            valign: "top"
-                
-        TextLabel:
-            text: "Prime Factors:"
-            size_hint_y: 0.3
-        
         GridLayout:
-            cols:2
-            size_hint_y: 0.5
-                
-            TextLabel:
-                id: factors
-                text: self.text
-                size_hint_x: 5
-                valign: "top"
-                    
-            TextLabel:
-                id: running_input
-                text: self.text
-                halign: "center"
-        
-        Graph:
-            id: TTS_graph
-            xlabel: "level"
-            ylabel: "time"
-            size_hint_y: 1
-        
-        GridLayout:
-            cols:4
-            size_hint_y: 0.5
-                
-            Button:
-                id: instructions_btn
-                text: "i"
-                background_normal: ''
-                background_color: (0.36,0.67,0.87)
-                on_press: root.show_info()
-                size_hint_x: 0.25
-                    
-            Button:
-                id: stats_btn
-                text: 'stats'
-                on_press: root.show_stats()
-                    
-            TextLabel:
-                text: 'mode:'
-                halign: "right"
+            id:grid1
+            size: root.width, root.height
+            cols:1
             
-            Button:
-                id: mode_btn
-                on_press: root.cycle_mode()
-        
-        ProgressBar:
-            id: time_display
-            min: 0
-            max: 1
-            size_hint_y: 0.05
+            GridLayout:
+                size_hint_y: 2
+                cols:1
+                canvas.before:
+                    Color:
+                        rgba: (1,1,1,0.2)
+                    RoundedRectangle:
+                        pos: self.x-(self.width/2), self.y+1
+                        size: (self.width*1.5)-10, self.height-2
+                        radius: [30,]
+                            
+                TextLabel:
+                    text: "Target:"
+                    size_hint_y: 1
 
-        GridLayout:
-            cols:2
-            size_hint_y: 1.5
-            
-            Button:
-                size_hint_x: 0.2
-                text: "0"
-                on_press:
-                    root.submit(self.text)
+                TextLabel:
+                    size_hint_y: 3
+                    id: target
+                    text: self.text
+
+            TextLabel:
+                text: "Prime Factors:"
+                size_hint_y: 0.3
 
             GridLayout:
-                cols:3
+                cols:2
+                size_hint_y: 0.5
 
-                #size_hint_y: 2.2
+                StackLayout:
+                    id: factor_stack
+                    size_hint_x: 4
+                    orientation: 'lr-tb'
 
-                Button:
-                    text: "1"
+                RunningInputBox:
+                    id: running_input
+                    text: self.text
+                    halign: "center"
+            
+            Graph:
+                id: TTS_graph
+                xlabel: "level"
+                ylabel: "time"
+                size_hint_y: 1
+
+            GridLayout:
+                cols:4
+                size_hint_y: 0.5
+
+                RoundedButton:
+                    id: instructions_btn
+                    text: "i"
+                    background_normal: ''
+                    background_color: (0.36,0.67,0.87)
+                    color: (1,1,1,1)
+                    font_size: min( self.height*0.95, self.width )
+                    on_press: root.show_info()
+                    size_hint_x: 0.25
+
+                RoundedButton:
+                    id: stats_btn
+                    text: 'stats'
+                    on_press: root.show_stats()
+
+                TextLabel:
+                    text: 'mode:'
+                    halign: "right"
+
+                RoundedButton:
+                    id: mode_btn
+                    on_press: root.cycle_mode()
+
+            ProgressBar:
+                id: time_display
+                min: 0
+                max: 1
+                size_hint_y: 0.05
+
+            GridLayout:
+                cols:2
+                size_hint_y: 1.5
+
+                RoundedButton:
+                    size_hint_x: 0.2
+                    text: "0"
                     on_press:
                         root.submit(self.text)
-                Button:
-                    text: "2"
-                    on_press:
-                        root.submit(self.text)
-                Button:
-                    text: "3"
-                    on_press:
-                        root.submit(self.text)
-                Button:
-                    text: "4"
-                    on_press:
-                        root.submit(self.text)
-                Button:
-                    text: "5"
-                    on_press:
-                        root.submit(self.text)
-                Button:
-                    text: "6"
-                    on_press:
-                        root.submit(self.text)
-                Button:
-                    text: "7"
-                    on_press:
-                        root.submit(self.text)
-                Button:
-                    text: "8"
-                    on_press:
-                        root.submit(self.text)
-                Button:
-                    text: "9"
-                    on_press:
-                        root.submit(self.text)
+
+                GridLayout:
+                    cols:3
+
+                    #size_hint_y: 2.2
+
+                    RoundedButton:
+                        text: "1"
+                        on_press:
+                            root.submit(self.text)
+                    RoundedButton:
+                        text: "2"
+                        on_press:
+                            root.submit(self.text)
+                    RoundedButton:
+                        text: "3"
+                        on_press:
+                            root.submit(self.text)
+                    RoundedButton:
+                        text: "4"
+                        on_press:
+                            root.submit(self.text)
+                    RoundedButton:
+                        text: "5"
+                        on_press:
+                            root.submit(self.text)
+                    RoundedButton:
+                        text: "6"
+                        on_press:
+                            root.submit(self.text)
+                    RoundedButton:
+                        text: "7"
+                        on_press:
+                            root.submit(self.text)
+                    RoundedButton:
+                        text: "8"
+                        on_press:
+                            root.submit(self.text)
+                    RoundedButton:
+                        text: "9"
+                        on_press:
+                            root.submit(self.text)
+
+        TextLabel:
+            id: target_fx
+            text: "0"
+            #valign: "top"
+            size_hint: None,None
+
                 
-
                 
 <GameOver>:
     name: "game_over_screen"
@@ -173,7 +242,7 @@
             ylabel: "score"
             size_hint_y: 1
         
-        Button:
+        RoundedButton:
             text: "Try Again"
             on_press: root.restart()
                 
@@ -189,12 +258,12 @@
         cols: 1
             
         MultilineTextLabel:
-            text: "instructions:\nPress the prime factors of the target number, in order from smallest to largest.\ne.g. if your target is 66, the prime factors are 2, 3, and 11 (since these are the prime numbers which multiply to make 66). so you would press 2 3 1 1.\nThe size of the target numbers increases as time progresses from the game start, so answering quickly will help you keep the targets manageable for longer.\nHit the mode button to toggle between normal and training modes. Training mode gives you targets that you are likely not confident with, based on your history. No data is saved from your games in training mode."
+            text: "instructions:\nPress the prime factors of the target number, in order from smallest to largest.\ne.g. if your target is 66, the prime factors are 2, 3, and 11 (since these are the prime numbers which multiply to make 66). so you would press 2 3 1 1.\nThe size of the target numbers increases as time progresses from the game start, so answering quickly will allow you to get more small targets.\nHit the mode button to toggle between normal and training modes. Training mode gives you targets that you often don't solve, based on your play history. No data is saved from your games in training mode."
             #valign: "middle"
             font_size: 1.15*( self.height*self.width / (1+ len(self.text)) )**0.5
             size_hint_y: 3
 
-        Button:
+        RoundedButton:
             text: "Play"
             on_press: root.restart()
                 
@@ -212,7 +281,7 @@
         Graph:
             id: WRN_graph
             xlabel: "target"
-            ylabel: "chance of success"
+            ylabel: "win rate"
             size_hint_y: 1
 
         Graph:
@@ -221,6 +290,6 @@
             ylabel: "avg time"
             size_hint_y: 1
 
-        Button:
+        RoundedButton:
             text: "Play"
             on_press: root.restart()

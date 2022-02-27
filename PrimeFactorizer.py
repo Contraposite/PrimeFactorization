@@ -60,7 +60,7 @@ data = load('save_data.pickle')
 if data == None:
     data = {'best_run': None, 'target_history': {'0':{'wins':0, 'losses':0, 'avg_time':0}}}
     
-print(data)
+#print(data)
 
 
 # In[6]:
@@ -136,6 +136,13 @@ class MultilineTextLabel(Label):
 # In[12]:
 
 
+class FactorBox(TextLabel):
+    pass
+
+
+# In[13]:
+
+
 keycodes = {
     49:'1',
     257:'1',
@@ -161,7 +168,7 @@ keycodes = {
 }
 
 
-# In[13]:
+# In[14]:
 
 
 class MyGrid(Screen):
@@ -173,7 +180,9 @@ class MyGrid(Screen):
         self.ids.mode_btn.color = (0.5,0.5,0.5,1)
         self.reset()
         
-        self.TTS_plot = LinePlot( color=[0,0,1,1], line_width=2 )
+        self.target_animation_stage = 0 #animiation not running
+        
+        self.TTS_plot = LinePlot( color=[0.7,0.9,1,1], line_width=2 )
         self.ids.TTS_graph.add_plot(self.TTS_plot)
         self.ids.TTS_graph.x_ticks_major=5
         self.TTS_plot.points = []
@@ -196,27 +205,31 @@ class MyGrid(Screen):
         self.TTS_graph_points = [(0,0)]
         self.longest_time_taken = 0
         self.ST_graph_points = [(0,0)]
-        self.new_challenge(1)
+        self.playing = False
+        self.new_challenge(0)
 
     def new_challenge(self, game_time):
         self.answer = ""
         self.ids.running_input.text = ""
-        self.question_time = 5 + 10/(0.1+(game_time**0.05))
+        self.question_time = 10
         self.time_remaining = self.question_time
         self.target_number = self.new_target(game_time)
         self.ids.target.text = str(self.target_number)
         self.factors_so_far = []
-        self.ids.factors.text = str(self.factors_so_far)
+        self.ids.factor_stack.clear_widgets()
         self.factors_to_go = get_factors(self.target_number)
         
     def new_target(self, game_time):
-        if self.game_type == 'normal':
-            return random.randint(int(2+2*game_time),int(11+2*game_time))
-        elif self.game_type == 'training':
-            return random.choice(self.training_set)
+        if not self.playing:
+            return 2 #first target of all games will be this number 
+        else:
+            if self.game_type == 'normal':
+                return random.randint(int(3+2*game_time),int(13+2*game_time))
+            elif self.game_type == 'training':
+                return random.choice(self.training_set)
         
     def submit(self, key=""):
-                
+        
         #if not on the game screen, don't submit anything
         if not self.manager.current == 'game_screen':
             return
@@ -229,7 +242,8 @@ class MyGrid(Screen):
         if self.factors_to_go[0] == submission:
             self.factors_to_go.remove(submission)
             self.factors_so_far.append(submission)
-            self.ids.factors.text = str(self.factors_so_far)
+            factor_img = FactorBox(text=str(submission))
+            self.ids.factor_stack.add_widget(factor_img)
             self.answer = ""
         elif submission_text in str(self.factors_to_go[0]) and str(self.factors_to_go[0]).index(submission_text)==0:
             pass #this is part way towards the correct answer. let them continue writing.
@@ -246,6 +260,10 @@ class MyGrid(Screen):
                 self.longest_time_taken = time_taken
             
             record_win(self.target_number, time_taken, self.game_type)
+            
+            self.playing = True #start the timer after the first target has been successfully completed
+            self.target_animation_stage = 0.0001 #start the animation
+            self.ids.target_fx.text = self.ids.target.text
                 
             self.ST_graph_points.append((self.game_time, self.score))
             
@@ -259,13 +277,35 @@ class MyGrid(Screen):
             self.submit(key)
     
     def update(self, dt):
-        if self.manager.current == 'game_screen':
+        if (self.manager.current == 'game_screen') and self.playing:
             self.game_time += dt
             self.time_remaining -= dt
-            self.ids.time_display.value = self.time_remaining / self.question_time
             if self.time_remaining <0:
                 record_loss(self.target_number, self.game_type)
                 self.lose_game()
+        
+        self.ids.target_fx.pos = self.target_fx_pos(self.target_animation_stage)
+        self.ids.target_fx.size = self.target_fx_size(self.target_animation_stage)
+        self.ids.target_fx.opacity = self.target_fx_opacity(self.target_animation_stage)
+        self.ids.target_fx.font_size = min( self.ids.target_fx.height*0.8, self.ids.target_fx.width/(0.1+0.6*len(self.ids.target_fx.text)) )
+        if self.target_animation_stage > 0:
+            self.target_animation_stage += 0.05
+        if self.target_animation_stage >= 1:
+            self.target_animation_stage = 0
+        
+        self.ids.time_display.value = self.time_remaining / self.question_time
+    
+    def target_fx_pos(self, stage):
+        return (self.ids.target.x+(self.width*0.6*stage), self.ids.target.y)
+    
+    def target_fx_size(self, stage):
+        return ( self.ids.target.width, self.ids.target.height )
+    
+    def target_fx_opacity(self, stage):
+        if stage == 0:
+            return 0
+        else:
+            return 0.5* (1-stage)
     
     def cycle_mode(self):
         if self.game_type == 'normal':
@@ -273,14 +313,19 @@ class MyGrid(Screen):
             self.ids.mode_btn.text = 'train'
             self.ids.mode_btn.color = (1,0.9,0.0,1)
             #set training set
-            confidence_ratings = [data['target_history'][key]['wins'] / (data['target_history'][key]['losses']+1) for key in data['target_history']]
-            confidence_ratings.sort()
-            threshold = confidence_ratings[int(len(confidence_ratings)*0.1)]
-            self.training_set = [2]
+            def confidence(target_key):
+                return data['target_history'][target_key]['wins'] / (1 + data['target_history'][target_key]['losses']**2)
+            confidence_values = [confidence(key) for key in data['target_history']]
+            confidence_values.sort()
+            threshold = confidence_values[int(len(confidence_values)*0.1)]
+            self.training_set = []
             for key in data['target_history']:
-                if data['target_history'][key]['wins'] / (data['target_history'][key]['losses']+1) <= threshold:
+                conf = confidence(key)
+                if conf <= threshold:
                     if key != '0':
                         self.training_set.append(int(key))
+            if len(self.training_set) == 0:
+                self.training_set = [2]
             self.reset()
         else:
             self.game_type = 'normal'
@@ -291,7 +336,7 @@ class MyGrid(Screen):
     def lose_game(self, losing_attempt='None'):
         self.manager.transition.direction = 'left'
         self.manager.current = 'game_over_screen'
-        self.manager.screens[1].info_to_display.text = "score: " + str(self.score) + "\ntarget: " + str(self.target_number) + "\nfactors so far: " + self.ids.factors.text + "\ninput: " + losing_attempt + "\ncorrect answer: \n" + str(get_factors(self.target_number))
+        self.manager.screens[1].info_to_display.text = "score: " + str(self.score) + "\ntarget: " + str(self.target_number) + "\nfactors so far: " + str(self.factors_so_far) + "\ninput: " + losing_attempt + "\ncorrect answer: \n" + str(get_factors(self.target_number))
         self.manager.screens[1].update_info(self.game_type)
         
     def show_info(self):
@@ -305,7 +350,7 @@ class MyGrid(Screen):
         
 
 
-# In[14]:
+# In[15]:
 
 
 class GameOver(Screen):
@@ -371,7 +416,7 @@ class GameOver(Screen):
         self.manager.screens[0].reset()
 
 
-# In[15]:
+# In[16]:
 
 
 class Info(Screen):
@@ -382,7 +427,7 @@ class Info(Screen):
         self.manager.screens[0].reset()
 
 
-# In[16]:
+# In[17]:
 
 
 class Stats(Screen):
@@ -392,9 +437,13 @@ class Stats(Screen):
         self.ids.WRN_graph.x_grid=True
         self.ids.WRN_graph.x_grid_label=True
         self.ids.WRN_graph.x_ticks_major=5
+        self.ids.WRN_graph.y_grid_label=True
+        self.ids.WRN_graph.y_ticks_major=0.25
         self.ids.TN_graph.x_grid=True
         self.ids.TN_graph.x_grid_label=True
         self.ids.TN_graph.x_ticks_major=5
+        self.ids.TN_graph.y_grid_label=True
+        self.ids.TN_graph.y_ticks_major=2
         
         self.WRN_plot = ScatterPlot( color=[0,0,1,1], point_size=2 )
         self.ids.WRN_graph.add_plot(self.WRN_plot)
@@ -413,15 +462,17 @@ class Stats(Screen):
             wins = data['target_history'][key]['wins']
             losses = data['target_history'][key]['losses']
             avg_time = data['target_history'][key]['avg_time']
-            self.WRN_plot.points.append((int(key), wins/(losses+1)))
-            if not avg_time == 0:
+            if (wins+losses)>3:
+                self.WRN_plot.points.append((int(key), wins/(wins+losses)))
+            if avg_time != 0:
                 self.TN_plot.points.append((int(key), avg_time))
         
-        self.ids.WRN_graph.xmax = max(pt[0] for pt in self.WRN_plot.points)+1
-        self.ids.WRN_graph.ymax = max(pt[1] for pt in self.WRN_plot.points)+1 +0.01*random.random() #random number fixes an issue with kivy only displaying the graph if it is different from before
-        
-        self.ids.TN_graph.xmax = max(pt[0] for pt in self.TN_plot.points)+1
-        self.ids.TN_graph.ymax = max(pt[1] for pt in self.TN_plot.points)+1 +0.01*random.random() #random number fixes an issue with kivy only displaying the graph if it is different from before
+        if len(self.WRN_plot.points)>0:
+            self.ids.WRN_graph.xmax = max(pt[0] for pt in self.WRN_plot.points)+1 +0.001*random.random() #random number fixes an issue with kivy only displaying the graph if it is different from before
+            self.ids.WRN_graph.ymax = 1.05 #max(pt[1] for pt in self.WRN_plot.points)+0.1 
+        if len(self.TN_plot.points)>0:
+            self.ids.TN_graph.xmax = max(pt[0] for pt in self.TN_plot.points)+1 +0.001*random.random() #random number fixes an issue with kivy only displaying the graph if it is different from before
+            self.ids.TN_graph.ymax = max(pt[1] for pt in self.TN_plot.points)+1
                 
     def restart(self):
         self.manager.transition.direction = 'left'
@@ -429,7 +480,7 @@ class Stats(Screen):
         self.manager.screens[0].reset()
 
 
-# In[17]:
+# In[18]:
 
 
 class PrimeFactorizerApp(App):

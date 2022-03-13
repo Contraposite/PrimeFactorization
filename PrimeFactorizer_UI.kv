@@ -1,37 +1,68 @@
 #: kivy 2.0.0
 
 <Label>:
-    color: 0.7,0.9,1,1 #0.36,0.67,0.87,1
-    font_name: 'consola'
+    color: app.theme.secondary
+    font_name: 'CONSOLA_FONT'
+        
+<TimeButton@Label>:
+    num:0
+    size_hint: 1,1
+    text: ''
+    canvas.before:
+        Color:
+            rgba: app.theme.background
+        Ellipse:
+            pos: root.x+root.width*0.1, root.y+root.height*0.1
+            size: min(root.width*0.8, root.height*0.8), root.height*0.8
+        Color:
+            rgba: (6,0.1,0.15,1) if self.parent.value*10 < 10-self.num else (0,0,0,0)
+        Ellipse:
+            pos: root.x+root.width*0.2, root.y+root.height*0.2
+            size: min(root.width*0.6, root.height*0.6), root.height*0.6
+        Color:
+            rgba: (1,1,1,0.3) if self.parent.value*10 < 10-self.num else (0,0,0,0)
+        Ellipse:
+            pos: root.x+root.width*0.4, root.y+root.height*0.4
+            size: min(root.width*0.25, root.height*0.25), root.height*0.25        
                 
 <TextLabel>:
     multiline: False
     text_size: self.size
     font_size: min( self.height*0.8, self.width/(0.1+0.6*len(self.text)) )
     valign: "middle"
-    #color: 1,1,0.5,1
 
-<FactorBox@TextLabel>:
-    size_hint: None,1
-    width: root.height * len(self.text)
-    halign: "center"
-    color: 0.2,0.2,0.2,1
+<BackgroundTextLabel@TextLabel>:
+    #font_size: min( self.height*0.6, self.width/(1+0.6*len(self.text)) )
+    font_size: ( self.height*self.width / (1+ len(self.text)) )**0.5
     canvas.before:
         Color:
-            rgba: (0.7,0.9,1,1)
+            rgba: app.theme.mix(app.theme.primary, app.theme.background)
+        RoundedRectangle:
+            pos: self.x+1, self.y+1
+            size: self.texture_size[0]-2, self.height-2
+            radius: [root.height*0.15,]
+                
+<FactorBox@TextLabel>:
+    size_hint: None,1
+    width: self.height * (0.5 + 0.5*len(self.text))
+    halign: "center"
+    color: app.theme.background
+    canvas.before:
+        Color:
+            rgba: app.theme.secondary
         RoundedRectangle:
             pos: self.x+1, self.y+1
             size: self.width-2, self.height-2
-            radius: [10,]
+            radius: [self.height*0.3,]
                 
 <RunningInputBox@TextLabel>:
     size_hint: None,1
-    width: root.height * len(self.text)
+    width: root.height * (0.5 + 0.5*len(self.text))
     halign: "center"
-    color: (0.8,0.8,0.8,1) if len(self.text)>0 else (0,0,0,0)
+    color: app.theme.secondary if len(self.text)>0 else (0,0,0,0)
     canvas.before:
         Color:
-            rgba: (0.2,0.2,0.2,1) if len(self.text)>0 else (0,0,0,0)
+            rgba: app.theme.primary if len(self.text)>0 else (0,0,0,0)
         RoundedRectangle:
             pos: self.x+1, self.y+1
             size: self.width-2, self.height-2
@@ -42,36 +73,69 @@
     text_size: self.size
     font_size: ( self.height*self.width / (1+ len(self.text)) )**0.5
     valign: "top"
-    #font_name: "consola"
 
 <Button>:
-    text_size: self.size
-    font_size: min( self.height*0.6, self.width/(1+0.6*len(self.text)) )
+    #text_size: self.size
     halign: "center"
     valign: "middle"
-    #font_name: "consola"
     
 <RoundedButton@Button>:
+    font_size: min( self.height*0.6, self.width/(1+0.6*len(self.text)) )
     background_color: 0,0,0,0
     canvas.before:
         Color:
-            rgba: (0.2,0.2,0.2,1) if self.state=='normal' else (0.8,0.8,0.8,1)
+            rgba: app.theme.mix(app.theme.primary,app.theme.background) if self.state=='normal' else app.theme.light(app.theme.primary)
         RoundedRectangle:
             pos: self.x+1, self.y+1
             size: self.width-2, self.height-2
-            radius: [10,]
+            radius: [root.height*0.075,]
         Color:
-            rgba: (0.25,0.25,0.25,1) if self.state=='normal' else (0.6,0.6,0.6,1)
+            rgba: app.theme.primary if self.state=='normal' else app.theme.light(app.theme.primary)
         RoundedRectangle:
-            pos: self.x+4, self.y+4
-            size: self.width-8, self.height-8
-            radius: [8,]        
+            pos: self.x+8, self.y+8
+            size: self.width-8*2, self.height-8*2
+            radius: [root.height*0.075,]        
+
+<InfoGroup@GridLayout>
+    info: 'hi there. if you are seeing this text, it\'s probably because Jonathan forgot to set the actual text which is supposed to go here. oh dear.'
+    cols:1
+    canvas.before:
+        Color:
+            rgba: app.theme.mix(app.theme.primary, app.theme.background)
+        RoundedRectangle:
+            pos: self.x, self.y+1
+            size: root.width*0.99, root.height-2
+            radius: [0,self.height*0.02,self.height*0.02,0]
+                
+    Button:
+        active: False
+        background_color: (0,0,0,0)
+        color: (1,1,1,1)    
+        text: 'i' if not self.active else root.info
+        font_size: root.width*0.1 if not self.active else root.width*0.06
+        multiline: True
+        size_hint_y: None
+        text_size: root.width, None
+        height: self.texture_size[1]+10
+        canvas.before:
+            Color:
+                rgba: (0.36,0.67,0.87,0.5) if not self.active else (0,0,0,0)
+            Ellipse:
+                pos: self.x+self.width/2 -(self.height-4)/2, self.y+self.height/2 -(self.height-4)/2
+                size: self.height-4, self.height-4
+        on_press:
+            self.active = not self.active
+            app.SM.current_screen.refresh_scatterplots()
+
+                        
+
+
 
 <MyGrid>:
     name: "game_screen"
-        
+
     FloatLayout:
-            
+                        
         GridLayout:
             id:grid1
             size: root.width, root.height
@@ -82,20 +146,81 @@
                 cols:1
                 canvas.before:
                     Color:
-                        rgba: (1,1,1,0.2)
+                        rgba: app.theme.primary
                     RoundedRectangle:
-                        pos: self.x-(self.width/2), self.y+1
-                        size: (self.width*1.5)-10, self.height-2
-                        radius: [30,]
+                        pos: self.x, self.y+1
+                        size: self.width*0.95, self.height-2
+                        radius: [0,self.height*0.2,self.height*0.2,0]
                             
                 TextLabel:
                     text: "Target:"
                     size_hint_y: 1
+                
+                FloatLayout:
+                    canvas.before:
+                        Color:
+                            rgba: (1,1,1,0.5)
+                        Rectangle:
+                            size: self.size
+                            pos: self.pos
+                    size_hint: None,None
+                    height:0
+                    Label: #shadow
+                        multiline: False
+                        text_size: target.text_size
+                        font_size: target.font_size
+                        valign: "middle"
+                        text: target.text
+                        size_hint: None,None
+                        size: target.size
+                        pos: target.x-target.height*0.05,target.y-target.height*0.05
+                        color: (0,0,0,0.5)
 
-                TextLabel:
-                    size_hint_y: 3
+                Label:
                     id: target
+                    multiline: False
+                    valign: "middle"
+                    size_hint_y: 3
                     text: self.text
+                    text_size: self.size
+                    font_size: min( self.height*1, self.width/(0.1+0.6*len(self.text)) )
+                
+                GridLayout:
+                    cols: 2
+                    size_hint: 1,None
+                    height: root.width*0.075
+                    GridLayout:
+                        id: time_display
+                        size_hint: None, 1
+                        width: root.width*0.8
+                        cols: 10
+                        value: 0
+                        TimeButton:
+                            num:1
+                        TimeButton:
+                            num:2
+                        TimeButton:
+                            num:3
+                        TimeButton:
+                            num:4
+                        TimeButton:
+                            num:5
+                        TimeButton:
+                            num:6
+                        TimeButton:
+                            num:7
+                        TimeButton:
+                            num:8
+                        TimeButton:
+                            num:9
+                        #TimeButton:
+                        #    num:10
+                    Label: #blank space to right
+                        text: ''
+                    Label: #blank space below
+                        text: ''
+                        size_hint_y: None
+                        height: root.width*0.01
 
             TextLabel:
                 text: "Prime Factors:"
@@ -109,7 +234,7 @@
                     id: factor_stack
                     size_hint_x: 4
                     orientation: 'lr-tb'
-
+                
                 RunningInputBox:
                     id: running_input
                     text: self.text
@@ -117,6 +242,7 @@
             
             Graph:
                 id: TTS_graph
+                border_color: app.theme.primary
                 xlabel: "level"
                 ylabel: "time"
                 size_hint_y: 1
@@ -140,7 +266,7 @@
                     text: 'stats'
                     on_press: root.show_stats()
 
-                TextLabel:
+                BackgroundTextLabel:
                     text: 'mode:'
                     halign: "right"
 
@@ -148,18 +274,21 @@
                     id: mode_btn
                     on_press: root.cycle_mode()
 
-            ProgressBar:
-                id: time_display
-                min: 0
-                max: 1
-                size_hint_y: 0.05
-
+            #ProgressBar:
+            #    id: time_display
+            #    color: (1,1,1,1)#app.theme.secondary
+            #    min: 0
+            #    max: 1
+            #    size_hint_y: 0.05
+                
             GridLayout:
                 cols:2
-                size_hint_y: 1.5
+                size_hint_y: None
+                height: root.height*0.25
 
                 RoundedButton:
-                    size_hint_x: 0.2
+                    id: 0
+                    size_hint_x: 0.225
                     text: "0"
                     on_press:
                         root.submit(self.text)
@@ -170,38 +299,47 @@
                     #size_hint_y: 2.2
 
                     RoundedButton:
+                        id: 1
                         text: "1"
                         on_press:
                             root.submit(self.text)
                     RoundedButton:
+                        id: 2
                         text: "2"
                         on_press:
                             root.submit(self.text)
                     RoundedButton:
+                        id: 3
                         text: "3"
                         on_press:
                             root.submit(self.text)
                     RoundedButton:
+                        id: 4
                         text: "4"
                         on_press:
                             root.submit(self.text)
                     RoundedButton:
+                        id: 5
                         text: "5"
                         on_press:
                             root.submit(self.text)
                     RoundedButton:
+                        id: 6
                         text: "6"
                         on_press:
                             root.submit(self.text)
                     RoundedButton:
+                        id: 7
                         text: "7"
                         on_press:
                             root.submit(self.text)
                     RoundedButton:
+                        id: 8
                         text: "8"
                         on_press:
                             root.submit(self.text)
                     RoundedButton:
+                        id: 9
                         text: "9"
                         on_press:
                             root.submit(self.text)
@@ -209,10 +347,9 @@
         TextLabel:
             id: target_fx
             text: "0"
-            #valign: "top"
             size_hint: None,None
 
-                
+
                 
 <GameOver>:
     name: "game_over_screen"
@@ -220,29 +357,47 @@
     info_to_display: info_to_display
         
     GridLayout:
-        size: root.width, root.height
-        cols: 1
-        
+        cols:1
+    
         TextLabel:
             text: "Game Finished"
             halign: "center"
             size_hint_y: 0.2
-                
-        Label:
-            id: info_to_display
-            text: self.text
-            text_size: self.size
-            font_size: self.height / 10
-            halign: "left"
-            size_hint_y: 1
-        
-        Graph:
-            id: ST_graph
-            xlabel: "game time"
-            ylabel: "score"
-            size_hint_y: 1
-        
+    
+        ScrollView:
+            #size: root.width, root.height
+            do_scroll_x: False
+            do_scroll_y: True
+
+            GridLayout:
+                size_hint_y: None
+                height: self.minimum_height
+                cols: 1
+
+                Label:
+                    id: info_to_display
+                    text: self.text
+                    text_size: self.size
+                    font_size: self.height / 10
+                    halign: "left"
+                    size_hint_y: None
+                    height: root.width*0.5
+
+                InfoGroup:
+                    info: 'This graph shows your progression at solving the targets, as time progresses during your game. You should see that your score increases (the graph goes higher up) as time progressed while you were playing the game (reading the graph from left to right). A steep line indicates that you were solving your targets quickly. A shallow line indicates that you were solving your targets slowly. The blue graph represents the game that you just finished playing. The red graph represents the best game you ever played (this is saved on your device for later). If there is no red graph, it is because your last game was your best one yet.'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    Graph:
+                        id: ST_graph
+                        border_color: app.theme.primary
+                        xlabel: "game time"
+                        ylabel: "score"
+                        size_hint_y: None
+                        height: root.width*0.6
+
         RoundedButton:
+            size_hint_y: None
+            height: root.height*0.2
             text: "Try Again"
             on_press: root.restart()
                 
@@ -252,18 +407,32 @@
                 
 <info>:
     name: "info_screen"
-    
+        
     GridLayout:
         size: root.width, root.height
         cols: 1
             
         MultilineTextLabel:
-            text: "instructions:\nPress the prime factors of the target number, in order from smallest to largest.\ne.g. if your target is 66, the prime factors are 2, 3, and 11 (since these are the prime numbers which multiply to make 66). so you would press 2 3 1 1.\nThe size of the target numbers increases as time progresses from the game start, so answering quickly will allow you to get more small targets.\nHit the mode button to toggle between normal and training modes. Training mode gives you targets that you often don't solve, based on your play history. No data is saved from your games in training mode."
+            text: "Instructions:\nPress the prime factors of the target number, in order from smallest to largest.\ne.g. if your target is 66, the prime factors are 2, 3, and 11 (since these are the prime numbers which multiply to make 66). so you would press 2 3 1 1.\nThe size of the target numbers increases as time progresses from the game start, so answering quickly will allow you to get more small targets.\nHit the mode button to toggle between normal and training modes. Training mode gives you targets that you often don't solve, based on your play history. No data is saved from your games in training mode."
             #valign: "middle"
             font_size: 1.15*( self.height*self.width / (1+ len(self.text)) )**0.5
-            size_hint_y: 3
+            size_hint_y: 0.8
+
+        MultilineTextLabel:
+            text: "This game is fully free, with no ads or in-game purchases. If you enjoy it, please consider leaving feedback or suggestions on the Google Play store."
+            #valign: "middle"
+            font_size: 1.15*( self.height*self.width / (1+ len(self.text)) )**0.5
+            size_hint_y: 0.2
 
         RoundedButton:
+            size_hint_y: None
+            height: root.height*0.1
+            text: "view on play store"
+            on_press: root.search('https://play.google.com/store/apps/details?id=com.jf.primefactorizer')
+            
+        RoundedButton:
+            size_hint_y: None
+            height: root.height*0.2
             text: "Play"
             on_press: root.restart()
                 
@@ -275,21 +444,63 @@
     name: "stats_screen"
     
     GridLayout:
-        size: root.width, root.height
-        cols: 1
-                
-        Graph:
-            id: WRN_graph
-            xlabel: "target"
-            ylabel: "win rate"
-            size_hint_y: 1
+        cols:1
+    
+        ScrollView:
+            #size: root.width, root.height
+            do_scroll_x: False
+            do_scroll_y: True
 
-        Graph:
-            id: TN_graph
-            xlabel: "target"
-            ylabel: "avg time"
-            size_hint_y: 1
+            GridLayout:
+                size_hint_y: None
+                height: self.minimum_height
+                cols:1
+                    
+                BackgroundTextLabel:
+                    id: highscore
+                    score: ''
+                    time: ''
+                    text: 'high score: ' + self.score + '\nat ' + self.time + ' sec'
+                    size_hint: None,None
+                    height: root.width*0.3
+                    width: root.width
+                    
+                InfoGroup:
+                    info: 'This graph shows your progression at solving the targets, as time progressed during your best game. You should see that your score increases (the graph goes higher up) as time progressed while you were playing the game (reading the graph from left to right). A steep line indicates that you were solving your targets quickly. A shallow line indicates that you were solving your targets slowly.'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    Graph:
+                        id: best_ST_graph
+                        border_color: app.theme.primary
+                        xlabel: "game time"
+                        ylabel: "score"
+                        size_hint_y: None
+                        height: root.width*0.6
+                InfoGroup:
+                    info: 'This graph shows what portion of your attempts were successful, for each target number. You must have had a few attempts at the target for it to show up on this graph. If a dot is high up, that means that you have a very good success rate for that target number. Use this graph to see which targets you struggle with.'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    Graph:
+                        id: WRN_graph
+                        border_color: app.theme.primary
+                        xlabel: "target"
+                        ylabel: "win rate"
+                        size_hint_y: None
+                        height: root.width*0.6
+                InfoGroup:
+                    info: 'This graph shows you how long, on average, you take to complete each target number. This does not include data for when targets are incomplete and time runs out - only for when you successfully completed the target. If a dot is high up, that means that you take a long time to solve that target. Use this graph to see which targets take you the most time to solve.'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    Graph:
+                        id: TN_graph
+                        border_color: app.theme.primary
+                        xlabel: "target"
+                        ylabel: "avg time"
+                        size_hint_y: None
+                        height: root.width*0.6
 
         RoundedButton:
+            size_hint_y: None
+            height: root.height*0.2
             text: "Play"
             on_press: root.restart()

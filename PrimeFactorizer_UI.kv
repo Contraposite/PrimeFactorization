@@ -487,6 +487,19 @@
                         ylabel: "win rate"
                         size_hint_y: None
                         height: root.width*0.6
+                            
+                    Label:
+                        id: low_win_rate_targets
+                        multiline: False
+                        text_size: self.size
+                        text: ''
+                        size_hint: None,None
+                        rows:1
+                        height: root.width*0.2 + root.width*0.1*self.rows
+                        width: root.width
+                        font_size: 0.8*self.height/(self.rows+1)
+                        valign: "middle"
+
                 InfoGroup:
                     info: 'This graph shows you how long, on average, you take to complete each target number. This does not include data for when targets are incomplete and time runs out - only for when you successfully completed the target. If a dot is high up, that means that you take a long time to solve that target. Use this graph to see which targets take you the most time to solve.'
                     size_hint_y: None

@@ -628,22 +628,40 @@ class Stats(Screen):
     def update_info(self):
         if not data['best_run'] == None:
             self.best_ST_plot.points = data['best_run']
-            self.ids['highscore'].score = str(data['best_run'][-1][1])
-            self.ids['highscore'].time = str(int(data['best_run'][-1][0]))
+            self.ids['highscore'].score = str(data["best_run"][-1][1])
+            self.ids['highscore'].time = f'{(data["best_run"][-1][0]):.1f}'
         self.WRN_plot.points = []
         self.TN_plot.points = []
+        self.ids.low_win_rate_targets.text = 'targets with low win rates:'
+        self.ids.low_win_rate_targets.rows = 1
 
-        #iterate through data and add points to graphs as we go
+        
+        #sort my rubbish data into a proper order like it should have been to begin with
+        sorted_data = []
         for key in data['target_history'].keys():
+            sorted_data.append({'target':key, 'data':data['target_history'][key]})
+            sorted_data.sort( key=lambda keydata: (keydata['data']['wins']/(0.001+keydata['data']['wins']+keydata['data']['losses'])) )
+        
+        #iterate through data and add points to graphs as we go
+        for i,target_data in enumerate(sorted_data):
+            key = target_data['target']
             wins = data['target_history'][key]['wins']
             losses = data['target_history'][key]['losses']
             avg_time = data['target_history'][key]['avg_time']
             if (wins+losses)>3:
-                self.WRN_plot.points.append((int(key), wins/(wins+losses)))
+                win_rate = wins/(wins+losses)
+                self.WRN_plot.points.append((int(key), win_rate))
+                if win_rate < 0.75:
+                    self.ids.low_win_rate_targets.text += f'\n{key} ({win_rate:.2f})'
+                    self.ids.low_win_rate_targets.rows +=1
             if avg_time != 0:
                 self.TN_plot.points.append((int(key), avg_time))
-                
+        
         self.refresh_graphs()
+        
+        if self.ids.low_win_rate_targets.rows==1:
+            self.ids.low_win_rate_targets.rows +=1
+            self.ids.low_win_rate_targets.text += '\n[None]'
     
     def refresh_graphs(self):
                 

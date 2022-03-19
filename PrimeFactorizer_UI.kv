@@ -38,8 +38,8 @@
         Color:
             rgba: app.theme.mix(app.theme.primary, app.theme.background)
         RoundedRectangle:
-            pos: self.x+1, self.y+1
-            size: self.texture_size[0]-2, self.height-2
+            pos: self.x+2, self.y+2
+            size: self.texture_size[0]-4, self.height-4
             radius: [root.height*0.15,]
                 
 <FactorBox@TextLabel>:
@@ -51,8 +51,8 @@
         Color:
             rgba: app.theme.secondary
         RoundedRectangle:
-            pos: self.x+1, self.y+1
-            size: self.width-2, self.height-2
+            pos: self.x+2, self.y+2
+            size: self.width-4, self.height-4
             radius: [self.height*0.3,]
                 
 <RunningInputBox@TextLabel>:
@@ -64,8 +64,8 @@
         Color:
             rgba: app.theme.primary if len(self.text)>0 else (0,0,0,0)
         RoundedRectangle:
-            pos: self.x+1, self.y+1
-            size: self.width-2, self.height-2
+            pos: self.x+2, self.y+2
+            size: self.width-4, self.height-4
             radius: [self.height/2,]
                 
 <MultilineTextLabel>:
@@ -86,8 +86,8 @@
         Color:
             rgba: app.theme.mix(app.theme.primary,app.theme.background) if self.state=='normal' else app.theme.light(app.theme.primary)
         RoundedRectangle:
-            pos: self.x+1, self.y+1
-            size: self.width-2, self.height-2
+            pos: self.x+2, self.y+2
+            size: self.width-4, self.height-4
             radius: [root.height*0.075,]
         Color:
             rgba: app.theme.primary if self.state=='normal' else app.theme.light(app.theme.primary)
@@ -97,18 +97,19 @@
             radius: [root.height*0.075,]        
 
 <InfoGroup@GridLayout>
+    active: False
     info: 'hi there. if you are seeing this text, it\'s probably because Jonathan forgot to set the actual text which is supposed to go here. oh dear.'
     cols:1
     canvas.before:
         Color:
             rgba: app.theme.mix(app.theme.primary, app.theme.background)
         RoundedRectangle:
-            pos: self.x, self.y+1
-            size: root.width*0.99, root.height-2
+            pos: self.x, self.y+2
+            size: root.width*0.99, root.height-4
             radius: [0,self.height*0.02,self.height*0.02,0]
                 
     Button:
-        active: False
+        active: root.active
         background_color: (0,0,0,0)
         color: (1,1,1,1)    
         text: 'i' if not self.active else root.info
@@ -124,7 +125,7 @@
                 pos: self.x+self.width/2 -(self.height-4)/2, self.y+self.height/2 -(self.height-4)/2
                 size: self.height-4, self.height-4
         on_press:
-            self.active = not self.active
+            root.active = not root.active
             app.SM.current_screen.refresh_scatterplots()
 
                         
@@ -213,8 +214,6 @@
                             num:8
                         TimeButton:
                             num:9
-                        #TimeButton:
-                        #    num:10
                     Label: #blank space to right
                         text: ''
                     Label: #blank space below
@@ -369,21 +368,59 @@
             do_scroll_x: False
             do_scroll_y: True
 
-            GridLayout:
+            GridLayout: #scrolling stuff
                 size_hint_y: None
                 height: self.minimum_height
                 cols: 1
-
-                Label:
-                    id: info_to_display
-                    text: self.text
-                    text_size: self.size
-                    font_size: self.height / 10
-                    halign: "left"
+                
+                GridLayout: #row of score + stats
                     size_hint_y: None
-                    height: root.width*0.5
+                    height: root.width*0.4
+                    cols: 2
+                    
+                    AnchorLayout: #score bubble anchor wrapper
+                        id:score_anchor
+                        size_hint_x: 0.5
+                        size_hint_y: 1
+                        anchor_x: 'center'
+                        anchor_y: 'center'
+                        GridLayout: #stuff in the score bubble
+                            cols: 1
+                            size_hint_y: None
+                            height: score_anchor.width
+                            canvas.before:
+                                Color:
+                                    rgba: app.theme.primary
+                                Ellipse:
+                                    size: self.size
+                                    pos: self.pos
+                            Label:
+                                size_hint_y:0.3
+                                text: 'score:'
+                                text_size: self.size
+                                font_size: min( self.height*0.75, self.width/(0.1+0.6*len(self.text)) )
+                                valign: "bottom"
+                                halign: 'center'
+                            TextLabel:
+                                id: last_game_score
+                                text: ''
+                                text_size: self.size
+                                font_size: min( self.height*0.85, self.width/(0.1+0.6*len(self.text)) )
+                                valign: "top"
+                                halign: 'center'
+
+                    BackgroundTextLabel:
+                        id: info_to_display
+                        target: ''
+                        factors_so_far: ''
+                        user_in: ''
+                        answer: ''
+                        text_size: self.size[0]*0.9, self.size[1]
+                        text: 'target: ' + self.target + '\nfactors so far: \n' + self.factors_so_far + '\nyour input: ' + self.user_in + '\ncorrect answer: \n' + self.answer
+                        font_size: 0.8*( self.height*self.width / (1+ len(self.text)) )**0.5
 
                 InfoGroup:
+                    id:game_over_group1
                     info: 'This graph shows your progression at solving the targets, as time progresses during your game. You should see that your score increases (the graph goes higher up) as time progressed while you were playing the game (reading the graph from left to right). A steep line indicates that you were solving your targets quickly. A shallow line indicates that you were solving your targets slowly. The blue graph represents the game that you just finished playing. The red graph represents the best game you ever played (this is saved on your device for later). If there is no red graph, it is because your last game was your best one yet.'
                     size_hint_y: None
                     height: self.minimum_height
@@ -399,7 +436,9 @@
             size_hint_y: None
             height: root.height*0.2
             text: "Try Again"
-            on_press: root.restart()
+            on_press:
+                root.restart()
+                game_over_group1.active = False
                 
                 
                 
@@ -466,6 +505,7 @@
                     width: root.width
                     
                 InfoGroup:
+                    id:stats_group1
                     info: 'This graph shows your progression at solving the targets, as time progressed during your best game. You should see that your score increases (the graph goes higher up) as time progressed while you were playing the game (reading the graph from left to right). A steep line indicates that you were solving your targets quickly. A shallow line indicates that you were solving your targets slowly.'
                     size_hint_y: None
                     height: self.minimum_height
@@ -477,6 +517,7 @@
                         size_hint_y: None
                         height: root.width*0.6
                 InfoGroup:
+                    id:stats_group2
                     info: 'This graph shows what portion of your attempts were successful, for each target number. You must have had a few attempts at the target for it to show up on this graph. If a dot is high up, that means that you have a very good success rate for that target number. Use this graph to see which targets you struggle with.'
                     size_hint_y: None
                     height: self.minimum_height
@@ -501,6 +542,7 @@
                         valign: "middle"
 
                 InfoGroup:
+                    id:stats_group3
                     info: 'This graph shows you how long, on average, you take to complete each target number. This does not include data for when targets are incomplete and time runs out - only for when you successfully completed the target. If a dot is high up, that means that you take a long time to solve that target. Use this graph to see which targets take you the most time to solve.'
                     size_hint_y: None
                     height: self.minimum_height
@@ -516,4 +558,8 @@
             size_hint_y: None
             height: root.height*0.2
             text: "Play"
-            on_press: root.restart()
+            on_press:
+                root.restart()
+                stats_group1.active=False
+                stats_group2.active=False
+                stats_group3.active=False

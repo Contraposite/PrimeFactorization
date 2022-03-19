@@ -94,7 +94,6 @@ data = load('../save_data.pickle')
 if data == None:
     data = {'saved_games':{'best_game': None, 'last_game':None}, 'best_times_per_score':[0], 'games_played':0, 'average_score':0, 'target_history': {'0':{'target':0, 'wins':0, 'losses':0, 'avg_time':0}}}
     
-#print(data)
 
 
 # In[8]:
@@ -468,7 +467,12 @@ class MyGrid(Screen):
         #switch screen and set info of the game finished screen
         self.manager.transition.direction = 'left'
         self.manager.current = 'game_over_screen'
-        self.manager.screens[1].info_to_display.text = "score: " + str(self.score) + "\ntarget: " + str(self.target_number) + "\nfactors so far: " + str(self.factors_so_far) + "\ninput: " + losing_attempt + "\ncorrect answer: \n" + str(get_factors(self.target_number))
+        self.manager.get_screen('game_over_screen').ids.last_game_score.text = str(self.score)
+        self.manager.get_screen('game_over_screen').ids.info_to_display.target = str(self.target_number)
+        self.manager.get_screen('game_over_screen').ids.info_to_display.factors_so_far = str(self.factors_so_far)
+        self.manager.get_screen('game_over_screen').ids.info_to_display.user_in = str(losing_attempt)
+        self.manager.get_screen('game_over_screen').ids.info_to_display.answer = str(get_factors(self.target_number))
+        
         self.manager.screens[1].update_graphs(self.game_type)
         
     def show_info(self):

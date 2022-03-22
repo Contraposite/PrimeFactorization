@@ -1,5 +1,9 @@
 #: kivy 2.0.0
 
+<Graph>:
+    tick_color: (0.1,0.1,0.15,1)
+    border_color: self.tick_color
+
 <Label>:
     color: app.theme.secondary
     font_name: 'CONSOLA_FONT'
@@ -272,13 +276,6 @@
                 RoundedButton:
                     id: mode_btn
                     on_press: root.cycle_mode()
-
-            #ProgressBar:
-            #    id: time_display
-            #    color: (1,1,1,1)#app.theme.secondary
-            #    min: 0
-            #    max: 1
-            #    size_hint_y: 0.05
                 
             GridLayout:
                 cols:2
@@ -427,7 +424,7 @@
                     Graph:
                         id: ST_graph
                         border_color: app.theme.primary
-                        xlabel: "game time"
+                        xlabel: "game time (s)"
                         ylabel: "score"
                         size_hint_y: None
                         height: root.width*0.6
@@ -512,7 +509,7 @@
                     Graph:
                         id: best_ST_graph
                         border_color: app.theme.primary
-                        xlabel: "game time"
+                        xlabel: "game time (s)"
                         ylabel: "score"
                         size_hint_y: None
                         height: root.width*0.6
@@ -550,7 +547,7 @@
                         id: TN_graph
                         border_color: app.theme.primary
                         xlabel: "target"
-                        ylabel: "avg time"
+                        ylabel: "avg time (s)"
                         size_hint_y: None
                         height: root.width*0.6
 

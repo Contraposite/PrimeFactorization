@@ -189,9 +189,9 @@ def graph_tick_dist(val):
 class ThemeManager:
     
     def __init__(self):
-        self.primary = (0.282,0.270,0.288,1) #(0.188,0.180,0.192,1)        
-        self.secondary = (0,0.7,1,1) #(0,0.5,0.7,1)
-        self.background = (0.153,0.141,0.159,1) #(0.102,0.094,0.106,1)
+        self.primary = (0.282,0.270,0.288,1)       
+        self.secondary = (0,0.7,1,1)
+        self.background = (0.153,0.141,0.159,1)
         self.tertiary = (0.9,0.525,0.525,1)
         Window.clearcolor = self.background
         
@@ -386,12 +386,7 @@ class MyGrid(Screen):
             self.new_challenge(self.game_time)
             
         self.ids.running_input.text = self.answer
-            
-    def key_press(self, keyboard, keycode, text, modifiers, other):
-        if keycode in keycodes:
-            key = keycodes[keycode]
-            self.submit(key)
-    
+                
     def update(self, dt):
         if (self.manager.current == 'game_screen') and self.playing:
             self.game_time += dt
@@ -450,7 +445,12 @@ class MyGrid(Screen):
                         self.training_set.append(int(key))
             if len(self.training_set) < 2:
                 self.training_set = self.training_set + [2,3] #add options to meet minimum requirements
-            self.reset()
+            
+            if self.score>0:  # if you switch modes in the middle of a proper game, that is considered 'chickening out' of the current target number, and is recorded as a loss.
+                record_loss(self.target_number, self.game_type)
+                self.lose_game('[switch game mode button]')
+            else: # but if we hadn't started the game yet, just reset the game with the new mode.
+                self.reset()
         else:
             self.game_type = 'normal'
             self.ids.mode_btn.text = 'norm'
@@ -541,7 +541,10 @@ class GameOver(Screen):
                 high_score = 0
             else:
                 self.ST_plot_best.points = [(0,0)]+[(pt['game_time'],score+1) for score,pt in enumerate(data['saved_games']['best_game'])]
-                best_game_time = data['saved_games']['best_game'][-1]['game_time']
+                if len(data['saved_games']['best_game'])>0:
+                    best_game_time = data['saved_games']['best_game'][-1]['game_time']
+                else:
+                    best_game_time=0
                 high_score = len(data['saved_games']['best_game'])
         
         self.ids.ST_graph.xmax = max(this_run_time, best_game_time)+1
@@ -712,16 +715,31 @@ class PrimeFactorizerApp(App):
         self.SM.add_widget(stats)
         #print(dir(self))
                         
-        Window.bind(on_key_down = my_grid.key_press)
+        Window.bind(on_key_down = self.key_input)
+        Window.bind(on_request_close = self.end_func)
         
-        return self.SM
+        return self.SM    
     
-    def key_input(self, window ,key, scancode, codepoint, modifier):
+    def key_input(self, window ,keycode, scancode, codepoint, modifier):
         #fix default crash behaviour on back button press on android
-        if key==27:
+        #print('keycode: ', keycode)
+        if keycode==27: #back button on android, esc on windows
             return True
-        else:
+        elif keycode==32: #space on windows
+            self.end_func()
+        elif keycode in keycodes:
+            key = keycodes[keycode]
+            self.SM.get_screen('game_screen').submit(key)
             return False
+        else:
+            return False        
+        
+    def end_func(self, *args):
+        self.stop()
+        Window.close()
+        
+    def on_pause(self):
+        return True
         
 if __name__ == '__main__':
     app = PrimeFactorizerApp()

@@ -9,7 +9,65 @@
 #add sounds - try pyjnius
 
 
+# # normal module imports
+
 # In[2]:
+
+
+import random
+import pickle
+import requests
+import json
+
+
+# # firebase import
+
+# In[3]:
+
+
+import pyrebase
+firebase_config = {
+    'apiKey': 'AIzaSyBIaPRIXT-XtCKNoF33Bi229TEF1O4oW3U',
+    'authDomain': 'prime-factorizer.firebaseapp.com',
+    'databaseURL': 'https://prime-factorizer-default-rtdb.europe-west1.firebasedatabase.app/',
+    'storageBucket': 'gs://prime-factorizer.appspot.com'
+}
+
+firebase = pyrebase.initialize_app(firebase_config)
+try:
+    print(auth.current_user['localId'])
+except Exception:
+    auth = firebase.auth()
+db = firebase.database()
+
+UID = None #set later
+token = None #set later
+
+#####
+# handy functions for firebase
+#####
+
+#data_test = {"score": 5, 'time': {'12':True}}
+
+#set (update)
+#db.child('player1').update(data_test)
+
+#get
+#db.child('player1').child('score').get().val()
+
+#remove
+#db.child('player1').child('score').remove()
+
+#iterate
+#toy_box_location = db.child('toy box')
+#for toy in toy_box_location.each():
+#    print(toy.val())
+#    print(toy.key())
+
+
+# # kivy imports
+
+# In[4]:
 
 
 from kivy.config import Config
@@ -32,7 +90,128 @@ from kivy_garden.graph import ScatterPlot
 #from kivy.core.audio import SoundLoader
 
 
-# In[3]:
+# # firebase functions
+
+# In[5]:
+
+
+#log in / sign up
+
+def log_in(email, password, signing_up=False):
+    
+    global user
+    global UID
+    global token
+    
+    user = None
+    UID = None
+    token = None
+    
+    auth.current_user = None #sign out if already signed in
+    
+    if signing_up:
+        try:
+            auth.create_user_with_email_and_password(email, password)
+            user = auth.sign_in_with_email_and_password(email, password)
+            logged_in = True
+        except Exception as ex:
+            print(ex)
+
+    else:
+        #try to log in existing user
+        try:
+            user = auth.sign_in_with_email_and_password(email, password)
+            logged_in = True
+        except Exception as ex:
+            print(ex)
+
+    try:
+        UID = user['localId']
+        token = user['idToken']
+        set_friendly_user_id()
+        return True #successful
+    except Exception:
+        pass
+    
+    return False #unsuccessful
+
+
+# In[6]:
+
+
+def download_data():
+    global data
+    try:
+        db_data = db.child('play data').child(UID).get(token).val()
+        if db_data['games_played'] >= data['games_played']: #if firebase data is not outdated
+            data = db_data
+            print('data downloaded from firebase')
+    except Exception as ex:
+        print('data download unsuccessful')
+        print(ex)        
+
+
+# In[7]:
+
+
+def upload_data():
+    download_data() #if we're out of date, need to update to the firebase data now.
+    try:
+        db_data = db.child('play data').child(UID).get(token).val()
+        if (db_data == None) or (data['games_played'] >= db_data['games_played']): #if local data is not outdated
+            db.child('play data').update({UID:data}, token)
+            db.child('best games leaderboard').update({UID:data['saved_games']['best_game']}, token)
+            print('data uploaded to firebase')
+        else:
+            print(f'games played local: {data["games_played"]}, games played firebase: {db_data["games_played"]}')
+    except Exception as ex:
+        print('data upload unsuccessful')
+        print(ex)
+
+
+# In[8]:
+
+
+def get_best_games_leaderboard():
+    try:
+        return db.child('best games leaderboard').get(token).val()
+    except Exception as ex:
+        print(ex)
+
+
+# In[9]:
+
+
+def set_friendly_user_id():
+    try:
+        if db.child('user public data').child(UID).child('friendly ID').get(token).val() == None: # only if I don't have a friendly ID
+            print( [ user for user in db.child('user public data').get(token).val().keys() ] )
+            existing_ids = [ db.child('user public data').child(user).child('friendly ID').get(token).val() for user in db.child('user public data').get(token).val().keys() ]
+            if None in existing_ids:
+                existing_ids.remove(None)
+            print(f'existing ids: {existing_ids}')
+            largest_id = max(existing_ids)
+            my_new_id = largest_id +1
+            #db.child('user public data').update({UID:{'friendly ID':my_new_id}}, token)
+            db.child('user public data').child(UID).update({'friendly ID':my_new_id}, token)
+    except Exception as ex:
+        print(ex)
+
+
+# In[10]:
+
+
+def get_friendly_user_id():
+    try:
+        set_friendly_user_id()
+        return db.child('user public data').child(UID).child('friendly ID').get(token).val()
+    except Exception:
+        return None
+
+
+# # functions
+
+# In[11]:
 
 
 def level_up_sound():
@@ -51,14 +230,7 @@ def tap_sound():
     #    sound.play()
 
 
-# In[4]:
-
-
-import random
-import pickle
-
-
-# In[5]:
+# In[12]:
 
 
 def save(obj):
@@ -70,7 +242,7 @@ def save(obj):
         print("Error during pickling object (Possibly unsupported):", ex)
 
 
-# In[6]:
+# In[13]:
 
 
 def load(filename):
@@ -86,7 +258,7 @@ def load(filename):
         print("Error during unpickling object (Possibly unsupported):", ex)
 
 
-# In[7]:
+# In[14]:
 
 
 #get/create the dictionary which will be the saved object storing important data
@@ -96,16 +268,16 @@ if data == None:
     
 
 
-# In[8]:
+# In[15]:
 
 
 def target_data_sorted_by(prop):
     listed_data = [data['target_history'][key] for key in data['target_history']]
-    sorted_data = listed_data.sort( key=lambda target_data: target_data[prop])
-    return sorted_data
+    listed_data.sort( key=lambda target_data: target_data[prop])
+    return listed_data
 
 
-# In[9]:
+# In[16]:
 
 
 def record_win(target_number, time_taken, game_time, game_type):
@@ -131,7 +303,7 @@ def record_win(target_number, time_taken, game_time, game_type):
         
 
 
-# In[10]:
+# In[17]:
 
 
 def record_loss(target_number, game_type):
@@ -145,7 +317,7 @@ def record_loss(target_number, game_type):
     data['target_history'][str(target_number)]['losses'] += 1 #increment the number of losses for this target
 
 
-# In[11]:
+# In[18]:
 
 
 #this function is not mine
@@ -162,7 +334,7 @@ def get_factors(n):
     return prime_factors
 
 
-# In[12]:
+# In[19]:
 
 
 def graph_tick_dist(val):
@@ -183,61 +355,9 @@ def graph_tick_dist(val):
 #    print(num, graph_tick_dist(num))
 
 
-# In[13]:
+# # global data
 
-
-class ThemeManager:
-    
-    def __init__(self):
-        self.primary = (0.282,0.270,0.288,1)       
-        self.secondary = (0,0.7,1,1)
-        self.background = (0.153,0.141,0.159,1)
-        self.tertiary = (0.9,0.525,0.525,1)
-        Window.clearcolor = self.background
-        
-    def dark(self, colour):
-        return [0.5*val for val in colour[:-1]] + [colour[-1]]        
-    def light(self, colour):
-        return [1-0.5*(1-val) for val in colour[:-1]] + [colour[-1]]
-    def mix(self,c1,c2):
-        return [(c1[i]+c2[i])/2 for i in range(4)]
-
-
-# In[ ]:
-
-
-
-
-
-# In[14]:
-
-
-class MyWindowManager(ScreenManager):
-    pass
-
-
-# In[15]:
-
-
-class TextLabel(Label):
-    pass
-
-
-# In[16]:
-
-
-class MultilineTextLabel(Label):
-    pass
-
-
-# In[17]:
-
-
-class FactorBox(TextLabel):
-    pass
-
-
-# In[18]:
+# In[20]:
 
 
 keycodes = {
@@ -265,7 +385,47 @@ keycodes = {
 }
 
 
-# In[19]:
+# # classes
+
+# In[21]:
+
+
+class ThemeManager:
+    
+    def __init__(self):
+        self.primary = (0.282,0.270,0.288,1)       
+        self.secondary = (0,0.7,1,1)
+        self.background = (0.092,0.085,0.095,1)
+        self.tertiary = (0.9,0.525,0.525,1)
+        Window.clearcolor = self.background
+        
+    def dark(self, colour):
+        return [0.5*val for val in colour[:-1]] + [colour[-1]]        
+    def light(self, colour):
+        return [1-0.5*(1-val) for val in colour[:-1]] + [colour[-1]]
+    def mix(self,c1,c2):
+        return [(c1[i]+c2[i])/2 for i in range(4)]
+
+
+# In[22]:
+
+
+# I think I could have actually done this just in the .kv file...
+class MyWindowManager(ScreenManager):
+    pass
+class TextLabel(Label):
+    pass
+class MultilineTextLabel(Label):
+    pass
+class FactorBox(TextLabel):
+    pass
+class BackgroundTextLabel(TextLabel):
+    pass
+class LeaderboardTextLabel(TextLabel):
+    pass
+
+
+# In[23]:
 
 
 class MyGrid(Screen):
@@ -337,7 +497,12 @@ class MyGrid(Screen):
             if self.game_type == 'normal':
                 options = list(range(int(3+2*game_time),int(13+2*game_time)))
             elif self.game_type == 'training':
-                options = list(set(self.training_set)) #create a copy of the training set to use
+                pool_size_moving = 5 #size of pool from which to choose random number while going through the training set
+                pool_size_final = 10 #size of pool from which to choose random number once we've reached the end of the training set
+                clip_start = max(0, min(self.score-1, len(self.training_set)-pool_size_final) )
+                clip_end = min(self.score+pool_size_moving, len(self.training_set)) #min( clip_start+pool_size_moving, len(self.training_set))
+                options = self.training_set.copy()[clip_start:clip_end] #create a copy of the training set to use, and crop
+                #print(f'score: {self.score}, start: {clip_start}, end: {clip_end}')
             #to avoid getting the same target twice in a row, exclude it from the options.
             if exclusion in options:
                 options.remove(exclusion)
@@ -431,20 +596,32 @@ class MyGrid(Screen):
             self.game_type = 'training'
             self.ids.mode_btn.text = 'train'
             self.ids.mode_btn.color = (1,0.9,0.0,1)
-            #set training set
-            def confidence(target_key):
-                return data['target_history'][target_key]['wins'] / (1 + data['target_history'][target_key]['losses']**2)
-            confidence_values = [confidence(key) for key in data['target_history']]
-            confidence_values.sort()
-            threshold = confidence_values[int(len(confidence_values)*0.1)]
-            self.training_set = []
-            for key in data['target_history']:
-                conf = confidence(key)
-                if conf <= threshold:
-                    if key != '0':
-                        self.training_set.append(int(key))
-            if len(self.training_set) < 2:
-                self.training_set = self.training_set + [2,3] #add options to meet minimum requirements
+                        
+            training_targets_data = [] #temporary list of target data for sorting before putting in the training set
+            listed_data = [data['target_history'][key] for key in data['target_history']] #we will sort this in different orders then add targets to the training_targets_data list
+            #use different fitness formulae to sort the targets and add to the training targets data list.
+            #fitness formula starts with a bias towards targets with high losses, then changes to bias targets with bad win/loss ratios.
+            loop_count = 4 #numbere of different fitness formulae to use
+            for i in range(loop_count):
+                #sort based on a fitness formula which changes for each iteration of the loop
+                listed_data.sort( key=lambda target_data: target_data['wins']/(0.01+ target_data['losses']**(loop_count-i)) )
+                #in the order of worst to best fitness score, add a few targets to the target data list, if they are valid and not already added
+                targets_added=0
+                for j in range(len(listed_data)):
+                    this_target_data = listed_data[j]
+                    if (not this_target_data in training_targets_data) and (this_target_data['target']>2):
+                        training_targets_data.append(this_target_data)
+                        targets_added+=1
+                    if targets_added>=5: #only add a max of 5 targets per fitness formula
+                        break
+            #do a final sort of the targets so that the training set is in order easy-to-hard
+            training_targets_data.sort( key=lambda target_data: target_data['wins']/(0.01+ target_data['losses']), reverse=True )
+            #we don't need the data dicts, just the target numbers, so extract these to create the training set
+            self.training_set = [target_data['target'] for target_data in training_targets_data]
+            #training set needs to be at least 2 long so add some if there aren't enough
+            if len(self.training_set) <2:
+                self.training_set += [2,3]
+            print('training set: ', self.training_set)
             
             if self.score>0:  # if you switch modes in the middle of a proper game, that is considered 'chickening out' of the current target number, and is recorded as a loss.
                 record_loss(self.target_number, self.game_type)
@@ -475,18 +652,28 @@ class MyGrid(Screen):
         
         self.manager.screens[1].update_graphs(self.game_type)
         
+        save(data) # save after updating game over graph because data is modified there
+        upload_data() # to firebase
+        
     def show_info(self):
-        self.manager.transition.direction = 'right'
-        self.manager.current = 'info_screen'
+        if self.score>0 and self.game_type=='normal':  # if you switch modes in the middle of a proper game, that is considered 'chickening out' of the current target number, and is recorded as a loss.
+            record_loss(self.target_number, self.game_type)
+            self.lose_game('[info button]')
+        else:
+            self.manager.transition.direction = 'right'
+            self.manager.current = 'info_screen'
         
-    def show_stats(self):
-        self.manager.transition.direction = 'right'
-        self.manager.screens[3].update_info()
-        self.manager.current = 'stats_screen'
+    def show_menu(self):
+        if self.score>0 and self.game_type=='normal':  # if you switch modes in the middle of a proper game, that is considered 'chickening out' of the current target number, and is recorded as a loss.
+            record_loss(self.target_number, self.game_type)
+            self.lose_game('[menu button]')
+        else:
+            self.manager.transition.direction = 'right'
+            self.manager.current = 'menu_screen'
         
 
 
-# In[20]:
+# In[24]:
 
 
 class GameOver(Screen):
@@ -551,8 +738,6 @@ class GameOver(Screen):
         self.ids.ST_graph.x_ticks_major = graph_tick_dist(self.ids.ST_graph.xmax)
         self.ids.ST_graph.ymax = max(this_score, high_score)+1
         self.ids.ST_graph.y_ticks_major = graph_tick_dist(self.ids.ST_graph.ymax)
-
-        save(data)
         
     def refresh_scatterplots(self):
         return
@@ -563,28 +748,28 @@ class GameOver(Screen):
         self.manager.screens[0].reset()
 
 
-# In[21]:
+# In[25]:
 
 
 class Info(Screen):
         
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
-    def restart(self):
-        self.manager.transition.direction = 'left'
-        self.manager.current = 'game_screen'
-        self.manager.screens[0].reset()
-        
+                
     def search(self, link):
         import webbrowser
         try:
             webbrowser.open(link)
         except ex as Exception:
             print('error opening link')
+            
+    def restart(self):
+        self.manager.transition.direction = 'left'
+        self.manager.current = 'game_screen'
+        self.manager.screens[0].reset()
 
 
-# In[22]:
+# In[26]:
 
 
 class Stats(Screen):
@@ -621,47 +806,64 @@ class Stats(Screen):
         self.ids.TN_graph.add_plot(self.TN_plot)
         self.TN_plot.points = []
     
-    def update_info(self):
-        if not data['saved_games']['best_game'] == None:
-            self.best_ST_plot.points = [(0,0)]+[(pt['game_time'],score+1) for score,pt in enumerate(data['saved_games']['best_game'])]
-            self.ids['highscore'].score = str( len(data['saved_games']["best_game"]) )
-            if len(data['saved_games']['best_game']) > 0:
-                self.ids['highscore'].time = f'{(data["saved_games"]["best_game"][-1]["game_time"]):.1f}'
-            else:
-                self.ids['highscore'].time = '0.0'
-        self.WRN_plot.points = []
-        self.TN_plot.points = []
-        self.ids.low_win_rate_targets.text = 'targets with low win rates:'
-        self.ids.low_win_rate_targets.rows = 1
+    def update_info(self, player_id=''):
+        
+        user_data = None
+        if player_id=='':
+            user_data = data
+        else:
+            try:
+                public_info = db.child('user public data').get(token).val()
+                for user_UID in public_info.keys():
+                    if str(public_info[user_UID]['friendly ID']) == player_id:
+                        user_data = db.child('play data').child(user_UID).get(token).val()
+                        break
+            except Exception as ex:
+                print(ex)
+                        
+        if user_data != None:
+        
+            if not user_data['saved_games']['best_game'] == None:
+                self.best_ST_plot.points = [(0,0)]+[(pt['game_time'],score+1) for score,pt in enumerate(user_data['saved_games']['best_game'])]
+                self.ids['highscore'].score = str( len(user_data['saved_games']["best_game"]) )
+                if len(user_data['saved_games']['best_game']) > 0:
+                    self.ids['highscore'].time = f'{(user_data["saved_games"]["best_game"][-1]["game_time"]):.1f}'
+                else:
+                    self.ids['highscore'].time = '0.0'
+            self.WRN_plot.points = []
+            self.TN_plot.points = []
+            self.ids.low_win_rate_targets.text = 'targets with low win rates:'
+            self.ids.low_win_rate_targets.rows = 1
+
+
+            #sort the data by win rate
+            sorted_data = []
+            for key in user_data['target_history'].keys():
+                sorted_data.append({'target':key, 'data':user_data['target_history'][key]})
+                sorted_data.sort( key=lambda keydata: (keydata['data']['wins']/(0.001+keydata['data']['wins']+keydata['data']['losses'])) )
+
+            #iterate through data and add points to graphs as we go
+            for i,target_data in enumerate(sorted_data):
+                key = target_data['target']
+                wins = user_data['target_history'][key]['wins']
+                losses = user_data['target_history'][key]['losses']
+                avg_time = user_data['target_history'][key]['avg_time']
+                if (wins+losses)>3:
+                    win_rate = wins/(wins+losses)
+                    self.WRN_plot.points.append((int(key), win_rate))
+                    if win_rate < 0.75:
+                        self.ids.low_win_rate_targets.text += f'\n{key} ({win_rate:.2f})'
+                        self.ids.low_win_rate_targets.rows +=1
+                if avg_time != 0:
+                    self.TN_plot.points.append((int(key), avg_time))
+
+            self.refresh_graphs()
+
+            if self.ids.low_win_rate_targets.rows==1:
+                self.ids.low_win_rate_targets.rows +=1
+                self.ids.low_win_rate_targets.text += '\n[None]'
 
         
-        #sort the data by win rate
-        sorted_data = []
-        for key in data['target_history'].keys():
-            sorted_data.append({'target':key, 'data':data['target_history'][key]})
-            sorted_data.sort( key=lambda keydata: (keydata['data']['wins']/(0.001+keydata['data']['wins']+keydata['data']['losses'])) )
-        
-        #iterate through data and add points to graphs as we go
-        for i,target_data in enumerate(sorted_data):
-            key = target_data['target']
-            wins = data['target_history'][key]['wins']
-            losses = data['target_history'][key]['losses']
-            avg_time = data['target_history'][key]['avg_time']
-            if (wins+losses)>3:
-                win_rate = wins/(wins+losses)
-                self.WRN_plot.points.append((int(key), win_rate))
-                if win_rate < 0.75:
-                    self.ids.low_win_rate_targets.text += f'\n{key} ({win_rate:.2f})'
-                    self.ids.low_win_rate_targets.rows +=1
-            if avg_time != 0:
-                self.TN_plot.points.append((int(key), avg_time))
-        
-        self.refresh_graphs()
-        
-        if self.ids.low_win_rate_targets.rows==1:
-            self.ids.low_win_rate_targets.rows +=1
-            self.ids.low_win_rate_targets.text += '\n[None]'
-    
     def refresh_graphs(self):
                 
         if data['saved_games']['best_game']!=None and len(data['saved_games']['best_game'])>0:
@@ -681,13 +883,161 @@ class Stats(Screen):
     def refresh_scatterplots(self):
         self.refresh_graphs()
     
-    def restart(self):
+    def search_1(self, ind):
+        try:
+            result = round( self.ids.best_ST_graph.plots[0].points[int(ind)][0], 1 )
+            return f'{ind} @ {result} sec'
+        except Exception as ex:
+            return 'N/A'
+        
+    def search_2(self, ind):
+        result = None
+        try:
+            for point in self.ids.WRN_graph.plots[0].points:
+                if point[0] == int(ind):
+                    result = point[1]
+                    break
+            if result == None:
+                return 'N/A'
+            return f'{ind} win rate:{result*100: .0f}%'
+                
+        except Exception as ex:
+            return 'N/A'
+        
+    def search_3(self, ind):
+        result = None
+        try:
+            for point in self.ids.TN_graph.plots[0].points:
+                if point[0] == int(ind):
+                    result = point[1]
+                    break
+            if result == None:
+                return 'N/A'
+            return f'{ind} time:{result: .1f} sec'
+                
+        except Exception as ex:
+            return 'N/A'
+    
+    def change_screen(self, screen_name):
+        self.manager.transition.direction = 'right'
+        self.manager.current = screen_name
+
+
+# In[27]:
+
+
+class Login(Screen):
+        
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+    def submit_login(self, email, password, signing_up=False):
+        #log out if already logged in
+        auth.current_user = None
+        
+        #attempt to log in / sign up
+        log_in(email, password, signing_up)
+        login_success = auth.current_user != None
+        if login_success:
+            download_data()
+            upload_data()
+            self.manager.transition.direction = 'up'
+            self.manager.current = 'game_screen'
+            self.manager.get_screen('game_screen').reset()
+                        
+    def change_screen(self, screen_name):
+        self.manager.transition.direction = 'up'
+        self.manager.current = screen_name
+
+
+# In[28]:
+
+
+class Profile(Screen):
+        
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+    def set_public_name(self, name):
+        #attempt to set the user's public name
+        try:
+            db.child('user public data').child(UID).update({'name': name}, token)
+        except Exception as ex:
+            print(ex)
+            
+    def change_screen(self, screen_name):
+        self.set_public_name(self.ids.public_name.text) #try to set current input before leaving this screen
+        
+        self.manager.transition.direction = 'right'
+        self.manager.current = screen_name
+
+
+# In[29]:
+
+
+class Menu(Screen):
+        
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+    def change_screen(self, screen_name):
         self.manager.transition.direction = 'left'
-        self.manager.current = 'game_screen'
-        self.manager.screens[0].reset()
+        self.manager.current = screen_name
+        if screen_name == 'game_screen':
+            self.manager.get_screen('game_screen').reset()
+        elif screen_name == 'leaderboard_screen':
+            self.manager.get_screen('leaderboard_screen').set_up()
+        elif screen_name == 'stats_screen':
+            self.manager.get_screen('stats_screen').update_info()
 
 
-# In[23]:
+# In[30]:
+
+
+class Leaderboard(Screen):
+        
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+    def set_up(self):
+        for wid in self.ids.leaderboard_grid.children[:-4]:
+            self.ids.leaderboard_grid.remove_widget(wid)
+        
+        try:
+            
+            leaderboard_data = db.child('best games leaderboard').get(token).val()
+            entries = []
+            for player in leaderboard_data.keys():
+                try:
+                    friendly_id = db.child('user public data').child(player).child('friendly ID').get(token).val()
+                    name = db.child('user public data').child(player).child('name').get(token).val()
+                    score = len(leaderboard_data[player])
+                    entries.append( {'friendly id': friendly_id, 'score': score, 'name':name} )
+                except Exception:
+                    pass
+
+            entries.sort( key=lambda d: d['score'] , reverse=True)
+
+            for i,entry in enumerate(entries):
+                leaderboard_grid = self.ids.leaderboard_grid
+                place_wid = LeaderboardTextLabel(text=str(i+1))
+                name_wid = LeaderboardTextLabel(text=str(entry['name']))
+                id_wid = LeaderboardTextLabel(text=str(entry['friendly id']))
+                score_wid = LeaderboardTextLabel(text=str(entry['score']))
+                leaderboard_grid.add_widget(place_wid)
+                leaderboard_grid.add_widget(name_wid)
+                leaderboard_grid.add_widget(id_wid)
+                leaderboard_grid.add_widget(score_wid)
+        
+        except Exception:
+            pass #probably just not signed in, or no internet connection
+            
+    def change_screen(self, screen_name):
+        self.manager.transition.direction = 'right'
+        self.manager.current = screen_name
+
+
+# In[31]:
 
 
 class PrimeFactorizerApp(App):
@@ -707,13 +1057,22 @@ class PrimeFactorizerApp(App):
         game_over = GameOver()
         info = Info()
         stats = Stats()
+        login = Login()
+        menu = Menu()
+        leaderboard = Leaderboard()
+        profile = Profile()
         Clock.schedule_interval(my_grid.update, 1.0/60.0)
         
         self.SM.add_widget(my_grid)
         self.SM.add_widget(game_over)
         self.SM.add_widget(info)
         self.SM.add_widget(stats)
-        #print(dir(self))
+        self.SM.add_widget(login)
+        self.SM.add_widget(menu)
+        self.SM.add_widget(leaderboard)
+        self.SM.add_widget(profile)
+        
+        self.SM.current = 'login_screen'
                         
         Window.bind(on_key_down = self.key_input)
         Window.bind(on_request_close = self.end_func)
@@ -725,14 +1084,14 @@ class PrimeFactorizerApp(App):
         #print('keycode: ', keycode)
         if keycode==27: #back button on android, esc on windows
             return True
-        elif keycode==32: #space on windows
-            self.end_func()
+        #elif keycode==32: #space on windows
+        #    self.end_func()
         elif keycode in keycodes:
             key = keycodes[keycode]
             self.SM.get_screen('game_screen').submit(key)
             return False
         else:
-            return False        
+            return False
         
     def end_func(self, *args):
         self.stop()

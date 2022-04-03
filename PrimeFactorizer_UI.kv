@@ -34,9 +34,21 @@
     text_size: self.size
     font_size: min( self.height*0.8, self.width/(0.1+0.6*len(self.text)) )
     valign: "middle"
+        
+<LeaderboardTextLabel@TextLabel>:
+    font_size: min(self.height*0.8, ( self.height*self.width / (1+ len(self.text)) )**0.5 )
+    halign: "right"
+    size_hint: 1,None
+    height: self.parent.width*0.1 if self.parent!=None else 100
+    canvas.before:
+        Color:
+            rgba: app.theme.mix(app.theme.primary, app.theme.background)
+        RoundedRectangle:
+            pos: self.x+2, self.y+2
+            size: self.texture_size[0]-4, self.height-4
+            radius: [root.height*0.15,]
 
 <BackgroundTextLabel@TextLabel>:
-    #font_size: min( self.height*0.6, self.width/(1+0.6*len(self.text)) )
     font_size: ( self.height*self.width / (1+ len(self.text)) )**0.5
     canvas.before:
         Color:
@@ -133,6 +145,49 @@
             app.SM.current_screen.refresh_scatterplots()
 
                         
+<GraphSearch@GridLayout>:
+    search_func: None #add reference to the python function which returns the result text
+    search_prop: ''
+        
+    cols:3
+    size_hint_y: None
+    height: root.width*0.1
+    canvas.before:
+        Color:
+            rgba: (0.35,0.4,0.375,1)
+        RoundedRectangle:
+            size: self.size
+            pos: self.pos
+            radius: [self.height/2]
+    Label:
+        valign: "middle"
+        font_size: min( self.height*0.8, self.width/(0.1+0.6*len(self.text)) )
+        text: 'search ' + root.search_prop + ':'
+        color: (0.1,0.2,0.05,1)
+    TextInput:
+        size_hint_x: None
+        width: root.width*0.2
+        background_color: app.theme.light( app.theme.primary )
+        multiline: False
+        on_text_validate:
+            result.text = root.search_func(self.text)
+            self.text = ''
+            self.focus = True
+            self.select_all()
+    Label:
+        id:result
+        valign: "middle"
+        font_size: min( self.height*0.8, self.width/(0.1+0.6*len(self.text)) )
+        text: ''
+        color: (0.1,0.2,0.05,1)
+    
+    
+    
+    
+    
+    
+    
+    
 
 
 
@@ -266,8 +321,8 @@
 
                 RoundedButton:
                     id: stats_btn
-                    text: 'stats'
-                    on_press: root.show_stats()
+                    text: 'menu'
+                    on_press: root.show_menu()
 
                 BackgroundTextLabel:
                     text: 'mode:'
@@ -432,7 +487,7 @@
         RoundedButton:
             size_hint_y: None
             height: root.height*0.2
-            text: "Try Again"
+            text: "Reset"
             on_press:
                 root.restart()
                 game_over_group1.active = False
@@ -473,8 +528,8 @@
             on_press: root.restart()
                 
                 
-                
-                
+
+        
                 
 <stats>:
     name: "stats_screen"
@@ -491,7 +546,24 @@
                 size_hint_y: None
                 height: self.minimum_height
                 cols:1
-                    
+                
+                GridLayout:
+                    cols:2
+                    size_hint_y: None
+                    height: root.width*0.1
+                    BackgroundTextLabel:
+                        text: 'player id:'
+                        size_hint: 1,1
+                    TextInput:
+                        id: player_id
+                        size_hint: 1,1
+                        write_tab: False
+                        font_size: min(self.height*0.6, ( self.height*self.width / (1+ len(self.text)) )**0.6 )
+                        background_color: app.theme.light( app.theme.primary )
+                        multiline: False
+                        on_text_validate:
+                            root.update_info(self.text)
+                
                 BackgroundTextLabel:
                     id: highscore
                     score: ''
@@ -513,6 +585,11 @@
                         ylabel: "score"
                         size_hint_y: None
                         height: root.width*0.6
+                            
+                    GraphSearch:
+                        search_func: root.search_1
+                        search_prop: 'score'
+                    
                 InfoGroup:
                     id:stats_group2
                     info: 'This graph shows what portion of your attempts were successful, for each target number. You must have had a few attempts at the target for it to show up on this graph. If a dot is high up, that means that you have a very good success rate for that target number. Use this graph to see which targets you struggle with.'
@@ -525,6 +602,10 @@
                         ylabel: "win rate"
                         size_hint_y: None
                         height: root.width*0.6
+
+                    GraphSearch:
+                        search_func: root.search_2
+                        search_prop: 'target'
                             
                     Label:
                         id: low_win_rate_targets
@@ -551,12 +632,166 @@
                         size_hint_y: None
                         height: root.width*0.6
 
+                    GraphSearch:
+                        search_func: root.search_3
+                        search_prop: 'target'
+                            
+                            
         RoundedButton:
             size_hint_y: None
             height: root.height*0.2
-            text: "Play"
+            text: "back"
             on_press:
-                root.restart()
+                root.change_screen('menu_screen')
                 stats_group1.active=False
                 stats_group2.active=False
                 stats_group3.active=False
+                
+                
+                
+                
+<login>:
+    name: "login_screen"
+    
+    GridLayout:
+        cols:1
+        
+        BackgroundTextLabel:
+            text: 'email:'
+        
+        TextInput:
+            id: email
+            write_tab: False
+            font_size: self.width*0.05
+            background_color: app.theme.light( app.theme.primary )
+            multiline: False
+
+        BackgroundTextLabel:
+            text: 'password:'
+        
+        TextInput:
+            id: password
+            write_tab: False
+            font_size: self.width*0.05
+            background_color: app.theme.light( app.theme.primary )
+            multiline: False
+            on_text_validate:
+                root.login(email.text, password.text)
+        
+        GridLayout:
+            cols:2
+            RoundedButton:
+                text: 'login'
+                on_press:
+                    root.submit_login(email.text, password.text)
+            RoundedButton:
+                text: 'sign up'
+                on_press:
+                    root.submit_login(email.text, password.text, signing_up=True)
+                
+        RoundedButton:
+            text: 'skip'
+            on_press:
+                root.change_screen('game_screen')
+                
+                
+                
+<menu>:
+    name: "menu_screen"
+    
+    GridLayout:
+        cols:1
+                  
+        RoundedButton:
+            text: 'log in'
+            on_press:
+                root.change_screen('login_screen')
+                
+        RoundedButton:
+            text: 'profile'
+            on_press:
+                root.change_screen('profile_screen')
+                
+        RoundedButton:
+            text: 'stats'
+            on_press:
+                root.change_screen('stats_screen')
+                
+        RoundedButton:
+            text: 'leaderboard'
+            on_press:
+                root.change_screen('leaderboard_screen')
+                
+        RoundedButton:
+            text: 'play'
+            on_press:
+                root.change_screen('game_screen')
+
+                
+                
+<profile>:
+    name: "profile_screen"
+    
+    GridLayout:
+        cols:1
+            
+        BackgroundTextLabel:
+            text: 'public name (alphabetical only)'
+                
+        TextInput:
+            id: public_name
+            write_tab: False
+            font_size: self.width*0.05
+            background_color: app.theme.light( app.theme.primary )
+            multiline: False
+            on_text_validate:
+                root.set_public_name(self.text)
+    
+        RoundedButton:
+            text: 'back'
+            on_press:
+                root.change_screen('menu_screen')
+                
+                
+<leaderboard>:
+    name: "leaderboard_screen"
+    
+    ScrollView:
+        #size: root.width, root.height
+        do_scroll_x: False
+        do_scroll_y: True
+
+    
+        GridLayout:
+            id: leaderboard_grid
+            size_hint_y: None
+            height: self.minimum_height
+            cols:4 #place, name, score
+
+            BackgroundTextLabel:
+                text: 'place'
+                halign:'center'
+                size_hint: 1,None
+                height: root.width*0.1
+            BackgroundTextLabel:
+                text: 'player'
+                halign:'center'
+                size_hint: 1,None
+                height: root.width*0.1
+            BackgroundTextLabel:
+                text: 'player id'
+                halign:'center'
+                size_hint: 1,None
+                height: root.width*0.1
+            BackgroundTextLabel:
+                text: 'score'
+                halign:'center'
+                size_hint: 1,None
+                height: root.width*0.1
+
+    RoundedButton:
+        size_hint_y: None
+        height: root.height*0.2
+        text: "back"
+        on_press:
+            root.change_screen('menu_screen')

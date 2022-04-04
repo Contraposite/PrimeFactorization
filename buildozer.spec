@@ -29,7 +29,7 @@ source.include_exts = py,png,jpg,kv,atlas,wav,TTF
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 2.7
+version = 3.1
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
@@ -37,7 +37,7 @@ version = 2.7
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,kivy_garden.graph
+requirements = python3,kivy,kivy_garden.graph,Pyrebase,requests,urllib3,charset-normalizer,idna,oauth2client,requests-toolbelt,httplib2,pyparsing,pyasn1,pyasn1-modules,rsa,google-api-python-client,google-auth,protobuf,google-cloud,gcloud,python-jwt,jwcrypto,cryptography,deprecated,wrapt,pycryptodome
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -94,7 +94,7 @@ fullscreen = 0
 #icon.adaptive_background.filename = %(source.dir)s/data/icon_bg.png
 
 # (list) Permissions
-#android.permissions = INTERNET
+android.permissions = INTERNET
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
@@ -267,7 +267,7 @@ android.archs = arm64-v8a, armeabi-v7a
 
 # (int) overrides automatic versionCode computation (used in build.gradle)
 # this is not the same as app version and should only be edited if you know what you're doing
-android.numeric_version = 27000
+android.numeric_version = 31000
 
 # (bool) enables Android auto backup feature (Android API >=23)
 android.allow_backup = True

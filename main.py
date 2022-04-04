@@ -838,7 +838,7 @@ class Stats(Screen):
 
             #sort the data by win rate
             sorted_data = []
-            for key in user_data['target_history'].keys():
+            for key in user_data['target_history']:
                 sorted_data.append({'target':key, 'data':user_data['target_history'][key]})
                 sorted_data.sort( key=lambda keydata: (keydata['data']['wins']/(0.001+keydata['data']['wins']+keydata['data']['losses'])) )
 

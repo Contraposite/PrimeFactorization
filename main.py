@@ -35,14 +35,19 @@ firebase_config = {
 }
 
 firebase = pyrebase.initialize_app(firebase_config)
-try:
-    print(auth.current_user['localId'])
-except Exception:
-    auth = firebase.auth()
+auth = firebase.auth()
+print('user at load up: ', auth.current_user)
 db = firebase.database()
 
-UID = None #set later
-token = None #set later
+user = auth.current_user
+if user == None:
+    user = None
+    UID = None #set later
+    token = None #set later
+else:
+    UID = user['localId']
+    token = user['idToken']
+
 
 #####
 # handy functions for firebase
@@ -104,11 +109,11 @@ def log_in(email, password, signing_up=False):
     global UID
     global token
     
+    #sign out if already signed in
+    auth.current_user = None
     user = None
     UID = None
     token = None
-    
-    auth.current_user = None #sign out if already signed in
     
     if signing_up:
         try:
@@ -614,7 +619,7 @@ class MyGrid(Screen):
             loop_count = 4 #numbere of different fitness formulae to use
             for i in range(loop_count):
                 #sort based on a fitness formula which changes for each iteration of the loop
-                listed_data.sort( key=lambda target_data: target_data['wins']/(0.01+ target_data['losses']**(10*(loop_count-i))) )
+                listed_data.sort( key=lambda target_data: (target_data['wins']**( i/(loop_count-1) )) / (0.1 + target_data['losses']) )
                 #in the order of worst to best fitness score, add a few targets to the target data list, if they are valid and not already added
                 targets_added=0
                 for j in range(len(listed_data)):
@@ -942,9 +947,6 @@ class Login(Screen):
         super().__init__(**kwargs)
         
     def submit_login(self, email, password, signing_up=False):
-        #log out if already logged in
-        auth.current_user = None
-        
         #attempt to log in / sign up
         log_in(email, password, signing_up)
         login_success = auth.current_user != None
@@ -958,6 +960,8 @@ class Login(Screen):
     def change_screen(self, screen_name):
         self.manager.transition.direction = 'up'
         self.manager.current = screen_name
+        if screen_name == 'game_screen':
+            self.manager.get_screen('game_screen').reset()
 
 
 # In[28]:
@@ -1018,14 +1022,15 @@ class Leaderboard(Screen):
             leaderboard_data = db.child('best games leaderboard').get(token).val()
             user_public_data = db.child('user public data').get(token).val()
             entries = []
-            for player in leaderboard_data.keys():
+            for player in leaderboard_data:
                 try:
                     friendly_id = user_public_data[player]['friendly ID']
-                    name = user_public_data[player]['name']
+                    if 'name' in user_public_data[player]:
+                        name = user_public_data[player]['name']
                     score = len(leaderboard_data[player])
                     entries.append( {'friendly id': friendly_id, 'score': score, 'name':name} )
-                except Exception:
-                    pass
+                except Exception as ex:
+                    print(ex)#pass
 
             entries.sort( key=lambda d: d['score'] , reverse=True)
 
@@ -1048,7 +1053,7 @@ class Leaderboard(Screen):
         self.manager.current = screen_name
 
 
-# In[31]:
+# In[ ]:
 
 
 class PrimeFactorizerApp(App):
@@ -1060,6 +1065,10 @@ class PrimeFactorizerApp(App):
         super().__init__(**kwargs)
             
     def build(self):
+        global UID
+        global token
+        
+        
         root = Builder.load_file('PrimeFactorizer_UI.kv')
         
         self.SM = MyWindowManager()
@@ -1083,8 +1092,9 @@ class PrimeFactorizerApp(App):
         self.SM.add_widget(leaderboard_screen)
         self.SM.add_widget(profile_screen)
         
-        self.SM.current = 'login_screen'
-                        
+        if user == None:
+            self.SM.current = 'login_screen'
+            
         Window.bind(on_key_down = self.key_input)
         Window.bind(on_request_close = self.end_func)
         

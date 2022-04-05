@@ -7,6 +7,7 @@
 #todo
 
 #add sounds - try pyjnius
+#convert data to nested ordered dict... or actually, convert firebase listed dict to normal data format?
 
 
 # # normal module imports
@@ -113,7 +114,6 @@ def log_in(email, password, signing_up=False):
         try:
             auth.create_user_with_email_and_password(email, password)
             user = auth.sign_in_with_email_and_password(email, password)
-            logged_in = True
         except Exception as ex:
             print(ex)
 
@@ -121,7 +121,6 @@ def log_in(email, password, signing_up=False):
         #try to log in existing user
         try:
             user = auth.sign_in_with_email_and_password(email, password)
-            logged_in = True
         except Exception as ex:
             print(ex)
 
@@ -141,6 +140,10 @@ def log_in(email, password, signing_up=False):
 
 def download_data():
     global data
+
+    if auth.current_user == None:
+        return #don't try to download anything if we're not signed in
+    
     try:
         db_data = db.child('play data').child(UID).get(token).val()
         if db_data['games_played'] >= data['games_played']: #if firebase data is not outdated
@@ -155,6 +158,10 @@ def download_data():
 
 
 def upload_data():
+    
+    if auth.current_user == None:
+        return #don't try to upload anything if we're not signed in
+    
     download_data() #if we're out of date, need to update to the firebase data now.
     try:
         db_data = db.child('play data').child(UID).get(token).val()
@@ -264,8 +271,11 @@ def load(filename):
 #get/create the dictionary which will be the saved object storing important data
 data = load('../save_data.pickle')
 if data == None:
-    data = {'saved_games':{'best_game': None, 'last_game':None}, 'best_times_per_score':[0], 'games_played':0, 'average_score':0, 'target_history': {'0':{'target':0, 'wins':0, 'losses':0, 'avg_time':0}}}
-    
+    data = {'saved_games':{'best_game': None, 'last_game':None}, 'best_times_per_score':[0], 'games_played':0, 'average_score':0, 'target_history': {'-1':{'target':-1, 'wins':0, 'losses':0, 'avg_time':0}}}
+
+#need to add this data into the target history so that firebase '.val()' won't convert this to a list instead of keeping it in dict format
+if not '-1' in data['target_history']:
+    data['target_history']['-1'] = {'avg_time': 0, 'losses': 0, 'target': -1, 'wins': 0}
 
 
 # In[15]:
@@ -604,7 +614,7 @@ class MyGrid(Screen):
             loop_count = 4 #numbere of different fitness formulae to use
             for i in range(loop_count):
                 #sort based on a fitness formula which changes for each iteration of the loop
-                listed_data.sort( key=lambda target_data: target_data['wins']/(0.01+ target_data['losses']**(loop_count-i)) )
+                listed_data.sort( key=lambda target_data: target_data['wins']/(0.01+ target_data['losses']**(10*(loop_count-i))) )
                 #in the order of worst to best fitness score, add a few targets to the target data list, if they are valid and not already added
                 targets_added=0
                 for j in range(len(listed_data)):
@@ -1006,11 +1016,12 @@ class Leaderboard(Screen):
         try:
             
             leaderboard_data = db.child('best games leaderboard').get(token).val()
+            user_public_data = db.child('user public data').get(token).val()
             entries = []
             for player in leaderboard_data.keys():
                 try:
-                    friendly_id = db.child('user public data').child(player).child('friendly ID').get(token).val()
-                    name = db.child('user public data').child(player).child('name').get(token).val()
+                    friendly_id = user_public_data[player]['friendly ID']
+                    name = user_public_data[player]['name']
                     score = len(leaderboard_data[player])
                     entries.append( {'friendly id': friendly_id, 'score': score, 'name':name} )
                 except Exception:

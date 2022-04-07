@@ -41,7 +41,6 @@ db = firebase.database()
 
 user = auth.current_user
 if user == None:
-    user = None
     UID = None #set later
     token = None #set later
 else:
@@ -128,7 +127,10 @@ def log_in(email, password, signing_up=False):
             user = auth.sign_in_with_email_and_password(email, password)
         except Exception as ex:
             print(ex)
-
+    
+    if user != None:
+        save(user,'user')
+    
     try:
         UID = user['localId']
         token = user['idToken']
@@ -145,8 +147,10 @@ def log_in(email, password, signing_up=False):
 
 def download_data():
     global data
+    global auth
 
     if auth.current_user == None:
+        print('auth.current_user is None.')
         return #don't try to download anything if we're not signed in
     
     try:
@@ -245,9 +249,9 @@ def tap_sound():
 # In[12]:
 
 
-def save(obj):
+def save(obj, filename='save_data'):
     try:
-        with open("../save_data.pickle", "wb") as f:
+        with open("../" + filename + ".pickle", "wb") as f:
             pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
             print('data saved!')
     except Exception as ex:
@@ -1018,13 +1022,13 @@ class Leaderboard(Screen):
             self.ids.leaderboard_grid.remove_widget(wid)
         
         try:
-            
             leaderboard_data = db.child('best games leaderboard').get(token).val()
             user_public_data = db.child('user public data').get(token).val()
             entries = []
             for player in leaderboard_data:
                 try:
                     friendly_id = user_public_data[player]['friendly ID']
+                    name = '-'
                     if 'name' in user_public_data[player]:
                         name = user_public_data[player]['name']
                     score = len(leaderboard_data[player])
@@ -1053,7 +1057,7 @@ class Leaderboard(Screen):
         self.manager.current = screen_name
 
 
-# In[ ]:
+# In[31]:
 
 
 class PrimeFactorizerApp(App):
@@ -1067,6 +1071,7 @@ class PrimeFactorizerApp(App):
     def build(self):
         global UID
         global token
+        global user
         
         
         root = Builder.load_file('PrimeFactorizer_UI.kv')
@@ -1092,6 +1097,17 @@ class PrimeFactorizerApp(App):
         self.SM.add_widget(leaderboard_screen)
         self.SM.add_widget(profile_screen)
         
+        
+        #try to get previously signed in user
+        try:
+            loaded_user = load('../user.pickle')
+            auth.current_user = auth.refresh(loaded_user['refreshToken'])
+            user = auth.current_user
+            UID = user['userId']
+            token = user['idToken']
+            print('loaded user:\n',auth.current_user)
+        except Exception as ex:
+            print('unable to login using previously saved user.', ex)
         if user == None:
             self.SM.current = 'login_screen'
             
@@ -1124,6 +1140,18 @@ class PrimeFactorizerApp(App):
 if __name__ == '__main__':
     app = PrimeFactorizerApp()
     app.run()
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:

@@ -1,0 +1,68 @@
+
+{
+  "rules": {
+    
+    //allows any signed-in user to view everyone's leaderboard entries
+    //allows users to write only if they are creating or modifying their own folder
+    "best games leaderboard": {
+      
+			".read": "auth !== null",
+      ".write": "auth !== null",
+      ".validate": "newData.hasChild(auth.uid)", //new object must be the user's own UID folder
+      
+      "$uid": {
+        ".validate": "auth.uid === $uid" //modifications can only be done within their own folder
+      }
+    },
+    
+      
+    //allows any signed-in user to view everyone's play data
+    //allows users to write only if they are creating or modifying their own folder
+    "play data": {
+      
+			".read": "auth !== null",
+      ".write": "auth !== null",
+      ".validate": "newData.hasChild(auth.uid)", //new object must be the user's own UID folder
+      
+      "$uid": {
+        ".validate": "auth.uid === $uid" //modifications can only be done within their own folder
+      }
+    },
+    
+      
+    //allows any signed-in user to view everyone's public data
+    //allows users to write only if they are creating or modifying their own folder
+    "user public data": {
+      
+			".read": "auth !== null",
+      ".write": "auth !== null",
+      ".validate": "newData.hasChild(auth.uid)", //new object must be the user's own UID folder
+      
+      "$uid": {
+        ".validate": "auth.uid === $uid", //modifications can only be done within their own folder
+        
+        "name": {
+          ".validate": "newData.isString() && newData.val().matches(/^[a-z]+$/) && newData.val().length <10"
+        }
+
+        
+      },
+
+    },
+    
+    
+    //allows users to view and submit ONLY their own private data
+    "user private data": {
+      
+      ".write": "auth !== null",
+      ".validate": "newData.hasChild(auth.uid)", //new object must be the user's own UID folder
+      
+      "$uid": {
+        ".read": "auth.uid === $uid", //reading can only be done in their own folder
+        ".validate": "auth.uid === $uid", //modifications can only be done within their own folder
+      }
+    },
+    
+    
+  }
+}

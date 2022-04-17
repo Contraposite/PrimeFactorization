@@ -7,7 +7,7 @@
 #todo
 
 #add sounds - try pyjnius
-#convert data to nested ordered dict... or actually, convert firebase listed dict to normal data format?
+#add on_enter methods to screens
 
 
 # # normal module imports
@@ -171,7 +171,6 @@ def upload_data():
     if auth.current_user == None:
         return #don't try to upload anything if we're not signed in
     
-    download_data() #if we're out of date, need to update to the firebase data now.
     try:
         db_data = db.child('play data').child(UID).get(token).val()
         if (db_data == None) or (data['games_played'] >= db_data['games_played']): #if local data is not outdated
@@ -179,7 +178,8 @@ def upload_data():
             db.child('best games leaderboard').update({UID:data['saved_games']['best_game']}, token)
             print('data uploaded to firebase')
         else:
-            print(f'games played local: {data["games_played"]}, games played firebase: {db_data["games_played"]}')
+            print(f'games played local: {data["games_played"]}, games played firebase: {db_data["games_played"]}.\ndownloading instead of uploading.')
+            download_data() #if we're out of date, need to update to the firebase data now.
     except Exception as ex:
         print('data upload unsuccessful')
         print(ex)
@@ -309,11 +309,12 @@ def record_win(target_number, time_taken, game_time, game_type):
     if not str(target_number) in data['target_history']:
         data['target_history'][str(target_number)] = {'target':target_number, 'wins':0, 'losses':0, 'avg_time':0}
     #modify values
-    avg_before = data['target_history'][str(target_number)]['avg_time']
-    wins_before = data['target_history'][str(target_number)]['wins']
-    data['target_history'][str(target_number)]['wins'] += 1 #increment the number of wins for this target
-    wins_after = data['target_history'][str(target_number)]['wins']
-    data['target_history'][str(target_number)]['avg_time'] = (avg_before*wins_before + time_taken) / wins_after #set the average (finds the total time taken and divides by total wins)
+    this_target_number_history = data['target_history'][str(target_number)]
+    avg_before = this_target_number_history['avg_time']
+    wins_before = this_target_number_history['wins']
+    this_target_number_history['wins'] += 1 #increment the number of wins for this target
+    wins_after = this_target_number_history['wins']
+    this_target_number_history['avg_time'] = (avg_before*wins_before + time_taken) / wins_after #set the average (finds the total time taken and divides by total wins)
     score = len(data['saved_games']['last_game'])
     if len(data['best_times_per_score'])<score+1:
         data['best_times_per_score'].append(game_time)
@@ -412,7 +413,7 @@ keycodes = {
 class ThemeManager:
     
     def __init__(self):
-        self.primary = (0.282,0.270,0.288,1)       
+        self.primary = (0.282,0.260,0.288,1)       
         self.secondary = (0,0.7,1,1)
         self.background = (0.092,0.085,0.095,1)
         self.tertiary = (0.9,0.525,0.525,1)
@@ -620,10 +621,10 @@ class MyGrid(Screen):
             listed_data = [data['target_history'][key] for key in data['target_history']] #we will sort this in different orders then add targets to the training_targets_data list
             #use different fitness formulae to sort the targets and add to the training targets data list.
             #fitness formula starts with a bias towards targets with high losses, then changes to bias targets with bad win/loss ratios.
-            loop_count = 4 #numbere of different fitness formulae to use
+            loop_count = 6 #number of different fitness formulae to use
             for i in range(loop_count):
                 #sort based on a fitness formula which changes for each iteration of the loop
-                listed_data.sort( key=lambda target_data: (target_data['wins']**( i/(loop_count-1) )) / (0.1 + target_data['losses']) )
+                listed_data.sort( key=lambda target_data: ( (0.1+target_data['wins'])**( (i/(loop_count-1))**3 )) / (0.1 + target_data['losses']) )
                 #in the order of worst to best fitness score, add a few targets to the target data list, if they are valid and not already added
                 targets_added=0
                 for j in range(len(listed_data)):
@@ -669,11 +670,8 @@ class MyGrid(Screen):
         self.manager.get_screen('game_over_screen').ids.info_to_display.user_in = str(losing_attempt)
         self.manager.get_screen('game_over_screen').ids.info_to_display.answer = str(get_factors(self.target_number))
         
-        self.manager.screens[1].update_graphs(self.game_type)
-        
-        save(data) # save after updating game over graph because data is modified there
-        upload_data() # to firebase
-        
+        self.manager.get_screen('game_over_screen').update_graphs(self.game_type)
+                
     def show_info(self):
         if self.score>0 and self.game_type=='normal':  # if you switch modes in the middle of a proper game, that is considered 'chickening out' of the current target number, and is recorded as a loss.
             record_loss(self.target_number, self.game_type)
@@ -690,6 +688,8 @@ class MyGrid(Screen):
             self.manager.transition.direction = 'right'
             self.manager.current = 'menu_screen'
         
+    def on_enter(self):
+        self.reset()
 
 
 # In[24]:
@@ -757,14 +757,17 @@ class GameOver(Screen):
         self.ids.ST_graph.x_ticks_major = graph_tick_dist(self.ids.ST_graph.xmax)
         self.ids.ST_graph.ymax = max(this_score, high_score)+1
         self.ids.ST_graph.y_ticks_major = graph_tick_dist(self.ids.ST_graph.ymax)
-        
-    def refresh_scatterplots(self):
-        return
-        
+    
+    def refresh_scatterplots(self): #called by info group 'i' buttons
+        pass
+    
     def restart(self):
         self.manager.transition.direction = 'right'
         self.manager.current = 'game_screen'
-        self.manager.screens[0].reset()
+        
+    def on_enter(self):
+        save(data)
+        upload_data() # to firebase
 
 
 # In[25]:
@@ -785,7 +788,9 @@ class Info(Screen):
     def restart(self):
         self.manager.transition.direction = 'left'
         self.manager.current = 'game_screen'
-        self.manager.screens[0].reset()
+
+    def on_enter(self):
+        pass
 
 
 # In[26]:
@@ -870,7 +875,7 @@ class Stats(Screen):
                 if (wins+losses)>3:
                     win_rate = wins/(wins+losses)
                     self.WRN_plot.points.append((int(key), win_rate))
-                    if win_rate < 0.75:
+                    if win_rate < 0.75 and self.ids.low_win_rate_targets.rows<11:
                         self.ids.low_win_rate_targets.text += f'\n{key} ({win_rate:.2f})'
                         self.ids.low_win_rate_targets.rows +=1
                 if avg_time != 0:
@@ -899,7 +904,7 @@ class Stats(Screen):
             self.ids.TN_graph.x_ticks_major = graph_tick_dist(self.ids.TN_graph.xmax)
             self.ids.TN_graph.ymax = max(pt[1] for pt in self.TN_plot.points)+1
     
-    def refresh_scatterplots(self):
+    def refresh_scatterplots(self): #called by info group 'i' buttons
         self.refresh_graphs()
     
     def search_1(self, ind):
@@ -940,6 +945,9 @@ class Stats(Screen):
     def change_screen(self, screen_name):
         self.manager.transition.direction = 'right'
         self.manager.current = screen_name
+        
+    def on_enter(self):
+        self.update_info()
 
 
 # In[27]:
@@ -964,8 +972,9 @@ class Login(Screen):
     def change_screen(self, screen_name):
         self.manager.transition.direction = 'up'
         self.manager.current = screen_name
-        if screen_name == 'game_screen':
-            self.manager.get_screen('game_screen').reset()
+            
+    def on_enter(self):
+        pass
 
 
 # In[28]:
@@ -977,9 +986,10 @@ class Profile(Screen):
         super().__init__(**kwargs)
         
     def set_public_name(self, name):
+        name_formatted = ''.join(filter(str.isalpha,name)).lower()
         #attempt to set the user's public name
         try:
-            db.child('user public data').child(UID).update({'name': name}, token)
+            db.child('user public data').child(UID).update({'name': name_formatted}, token)
         except Exception as ex:
             print(ex)
             
@@ -988,6 +998,13 @@ class Profile(Screen):
         
         self.manager.transition.direction = 'right'
         self.manager.current = screen_name
+        
+    def on_enter(self):
+        try:
+            self.ids.player_id.text = str( db.child('user public data').child(UID).get(token).val()['friendly ID'] )
+            self.ids.public_name.text = db.child('user public data').child(UID).get(token).val()['name']
+        except Exception as ex:
+            print(ex)
 
 
 # In[29]:
@@ -997,16 +1014,17 @@ class Menu(Screen):
         
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+                
     def change_screen(self, screen_name):
+        print('leaving menu screen')
         self.manager.transition.direction = 'left'
         self.manager.current = screen_name
-        if screen_name == 'game_screen':
-            self.manager.get_screen('game_screen').reset()
-        elif screen_name == 'leaderboard_screen':
-            self.manager.get_screen('leaderboard_screen').set_up()
-        elif screen_name == 'stats_screen':
-            self.manager.get_screen('stats_screen').update_info()
+            
+    def on_enter(self):
+        global user
+        if user != None:
+            auth.current_user = auth.refresh(user['refreshToken'])
+            user = auth.current_user
 
 
 # In[30]:
@@ -1017,6 +1035,13 @@ class Leaderboard(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
+        self.ids.leaderboard_graph.y_grid=True
+        self.ids.leaderboard_graph.y_grid_label=True
+        self.ids.leaderboard_graph.y_ticks_major=5
+        self.ids.leaderboard_graph.x_grid=True
+        self.ids.leaderboard_graph.x_grid_label=True
+        self.ids.leaderboard_graph.x_ticks_major=10
+                
     def set_up(self):
         for wid in self.ids.leaderboard_grid.children[:-4]:
             self.ids.leaderboard_grid.remove_widget(wid)
@@ -1031,13 +1056,23 @@ class Leaderboard(Screen):
                     name = '-'
                     if 'name' in user_public_data[player]:
                         name = user_public_data[player]['name']
+                    game = leaderboard_data[player]
                     score = len(leaderboard_data[player])
-                    entries.append( {'friendly id': friendly_id, 'score': score, 'name':name} )
+                    time = leaderboard_data[player][-1]['game_time']
+                    entries.append( {'friendly id': friendly_id, 'score': score, 'name':name, 'game':game, 'time':time} )
                 except Exception as ex:
                     print(ex)#pass
 
-            entries.sort( key=lambda d: d['score'] , reverse=True)
+            entries.sort( key=lambda d: (-d['score'], d['time']) )
 
+            #set minimum graph extents, which will be dynamically extended as plots are added
+            self.ids.leaderboard_graph.xmax = 10
+            self.ids.leaderboard_graph.ymax = 10
+            leaderboard_plots = 0
+            #remove existing plots which may have been generated earlier
+            for plot in self.ids.leaderboard_graph.plots:
+                self.ids.leaderboard_graph.remove_plot(plot)
+            
             for i,entry in enumerate(entries):
                 leaderboard_grid = self.ids.leaderboard_grid
                 place_wid = LeaderboardTextLabel(text=str(i+1))
@@ -1048,13 +1083,41 @@ class Leaderboard(Screen):
                 leaderboard_grid.add_widget(name_wid)
                 leaderboard_grid.add_widget(id_wid)
                 leaderboard_grid.add_widget(score_wid)
-        
+                #add graph plot
+                if entry['game']!=None and len(entry['game'])>0 and leaderboard_plots<10:
+                    self.this_leaderboard_plot = LinePlot( color=[1,0,0,1], line_width=1.5 )
+                    self.this_leaderboard_plot.points = [(0,0)]+[(pt['game_time'],score+1) for score,pt in enumerate(entry['game'])]
+                    self.ids.leaderboard_graph.add_plot(self.this_leaderboard_plot)
+                    leaderboard_plots +=1
+                    self.ids.leaderboard_graph.xmax = max( max(pt[0] for pt in self.this_leaderboard_plot.points)+1, self.ids.leaderboard_graph.xmax )
+                    self.ids.leaderboard_graph.x_ticks_major = graph_tick_dist(self.ids.leaderboard_graph.xmax)
+                    self.ids.leaderboard_graph.ymax = max( max(pt[1] for pt in self.this_leaderboard_plot.points)+1, self.ids.leaderboard_graph.ymax )
+                    self.ids.leaderboard_graph.y_ticks_major = graph_tick_dist(self.ids.leaderboard_graph.ymax)
+            
+            #add this player's plot
+            if data['saved_games']['best_game']!=None and len(data['saved_games']['best_game'])>0:
+                self.this_leaderboard_plot = LinePlot( color=[0,0,1,1], line_width=1.75 )
+                self.this_leaderboard_plot.points = [(0,0)]+[(pt['game_time'],score+1) for score,pt in enumerate(data['saved_games']['best_game'])]
+                self.ids.leaderboard_graph.add_plot(self.this_leaderboard_plot)
+                leaderboard_plots +=1
+                self.ids.leaderboard_graph.xmax = max( max(pt[0] for pt in self.this_leaderboard_plot.points)+1, self.ids.leaderboard_graph.xmax )
+                self.ids.leaderboard_graph.x_ticks_major = graph_tick_dist(self.ids.leaderboard_graph.xmax)
+                self.ids.leaderboard_graph.ymax = max( max(pt[1] for pt in self.this_leaderboard_plot.points)+1, self.ids.leaderboard_graph.ymax )
+                self.ids.leaderboard_graph.y_ticks_major = graph_tick_dist(self.ids.leaderboard_graph.ymax)
+
+                
         except Exception:
             pass #probably just not signed in, or no internet connection
             
     def change_screen(self, screen_name):
         self.manager.transition.direction = 'right'
         self.manager.current = screen_name
+    
+    def refresh_scatterplots(self):
+        pass
+    
+    def on_enter(self):
+        self.set_up()
 
 
 # In[31]:

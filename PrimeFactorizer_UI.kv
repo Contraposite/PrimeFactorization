@@ -1,7 +1,7 @@
 #: kivy 2.0.0
 
 <Graph>:
-    tick_color: (0.1,0.1,0.15,1)
+    tick_color: (0.08,0.08,0.13,1)
     border_color: self.tick_color
 
 <Label>:
@@ -129,7 +129,7 @@
         background_color: (0,0,0,0)
         color: (1,1,1,1)    
         text: 'i' if not self.active else root.info
-        font_size: root.width*0.1 if not self.active else root.width*0.06
+        font_size: root.width*0.05 if not self.active else root.width*0.06
         multiline: True
         size_hint_y: None
         text_size: root.width, None
@@ -156,8 +156,8 @@
         Color:
             rgba: (0.35,0.4,0.375,1)
         RoundedRectangle:
-            size: self.size
-            pos: self.pos
+            pos: self.x+2, self.y+2
+            size: self.width-4, self.height-4
             radius: [self.height/2]
     Label:
         valign: "middle"
@@ -547,22 +547,30 @@
                 height: self.minimum_height
                 cols:1
                 
-                GridLayout:
-                    cols:2
+                
+                InfoGroup:
+                    info: "You can leave this blank to view your stats (as they are stored locally on this device) or enter a player ID to view the stats and graphs of that player (as they are stored on the cloud). Press 'return' on your on-screen keyboard to apply your input."
                     size_hint_y: None
-                    height: root.width*0.1
-                    BackgroundTextLabel:
-                        text: 'player id:'
-                        size_hint: 1,1
-                    TextInput:
-                        id: player_id
-                        size_hint: 1,1
-                        write_tab: False
-                        font_size: min(self.height*0.6, ( self.height*self.width / (1+ len(self.text)) )**0.6 )
-                        background_color: app.theme.light( app.theme.primary )
-                        multiline: False
-                        on_text_validate:
-                            root.update_info(self.text)
+                    height: self.minimum_height
+                    GridLayout:
+                        cols:3
+                        size_hint_y: None
+                        height: root.width*0.1
+                        BackgroundTextLabel:
+                            text: 'player id:'
+                            size_hint: 1,1
+                        TextInput:
+                            id: player_id
+                            size_hint: 1,1
+                            write_tab: False
+                            font_size: min(self.height*0.6, ( self.height*self.width / (1+ len(self.text)) )**0.6 )
+                            background_color: app.theme.light( app.theme.primary )
+                            multiline: False
+                            on_text_validate:
+                                root.update_info(self.text)
+                        TextLabel:
+                            text: ''
+                            size_hint_x: 0.2
                 
                 BackgroundTextLabel:
                     id: highscore
@@ -657,7 +665,7 @@
         cols:1
         
         BackgroundTextLabel:
-            text: 'email:'
+            text: 'email (must be email address format):'
         
         TextInput:
             id: email
@@ -667,7 +675,7 @@
             multiline: False
 
         BackgroundTextLabel:
-            text: 'password:'
+            text: 'password (must not be too weak):'
         
         TextInput:
             id: password
@@ -736,6 +744,14 @@
         cols:1
             
         BackgroundTextLabel:
+            text: 'your player id'
+
+        TextLabel:
+            id:player_id
+            text: ''
+            #font_size: self.height*0.6
+            
+        BackgroundTextLabel:
             text: 'public name (alphabetical only)'
                 
         TextInput:
@@ -763,31 +779,48 @@
 
     
         GridLayout:
-            id: leaderboard_grid
             size_hint_y: None
             height: self.minimum_height
-            cols:4 #place, name, score
+            cols:1
 
-            BackgroundTextLabel:
-                text: 'place'
-                halign:'center'
-                size_hint: 1,None
-                height: root.width*0.1
-            BackgroundTextLabel:
-                text: 'player'
-                halign:'center'
-                size_hint: 1,None
-                height: root.width*0.1
-            BackgroundTextLabel:
-                text: 'player id'
-                halign:'center'
-                size_hint: 1,None
-                height: root.width*0.1
-            BackgroundTextLabel:
-                text: 'score'
-                halign:'center'
-                size_hint: 1,None
-                height: root.width*0.1
+            InfoGroup:
+                info: 'This graph overlays the best games of the top 10 players on the leaderboard.'
+                size_hint_y: None
+                height: self.minimum_height
+                Graph:
+                    id: leaderboard_graph
+                    border_color: app.theme.primary
+                    xlabel: "time (s)"
+                    ylabel: "score"
+                    size_hint_y: None
+                    height: root.width*0.6
+                
+            GridLayout:
+                id: leaderboard_grid
+                size_hint_y: None
+                height: self.minimum_height
+                cols:4 #place, name, id, score
+
+                BackgroundTextLabel:
+                    text: 'place'
+                    halign:'center'
+                    size_hint: 1,None
+                    height: root.width*0.1
+                BackgroundTextLabel:
+                    text: 'name'
+                    halign:'center'
+                    size_hint: 1,None
+                    height: root.width*0.1
+                BackgroundTextLabel:
+                    text: 'player id'
+                    halign:'center'
+                    size_hint: 1,None
+                    height: root.width*0.1
+                BackgroundTextLabel:
+                    text: 'score'
+                    halign:'center'
+                    size_hint: 1,None
+                    height: root.width*0.1
 
     RoundedButton:
         size_hint_y: None

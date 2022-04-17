@@ -477,6 +477,7 @@ class MyGrid(Screen):
             self.ids.TTS_graph.ymax = self.longest_time_taken+1        
     
     def reset(self):
+        print('resetting')
         #need to declare target number early since it's referenced by the function which sets its initial value.
         #its value is used as an exclusion from the random options, to avoid getting the same number multiple times in a row.
         #resetting it to zero in this function means at the start of the game there are no exclusions.
@@ -655,6 +656,7 @@ class MyGrid(Screen):
             self.reset()
     
     def lose_game(self, losing_attempt='None'):
+        print('game lost!')
         #set number of games and average score in data dict
         games_before = data['games_played']
         average_before = data['average_score']
@@ -762,6 +764,7 @@ class GameOver(Screen):
         pass
     
     def restart(self):
+        self.manager.get_screen('game_screen').on_enter() #reset the game BEFORE entering so that if time is up it will update before triggering another loss
         self.manager.transition.direction = 'right'
         self.manager.current = 'game_screen'
         
